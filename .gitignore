@@ -178,9 +178,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-<<<<<<< Updated upstream
-# VS Code
-.vscode/
-=======
 .vscode
->>>>>>> Stashed changes

@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "schemas": {
+    "constraints": {
+      "name": "constraints",
+      "tables": {
+        "departments": {
+          "name": "departments",
+          "unique_constraints": [
+            {
+              "columns": [
+                {
+                  "name": "name",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": false
+            },
+            {
+              "columns": [
+                {
+                  "name": "id",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": true
+            }
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "name",
+              "column_type": "character varying",
+              "numeric_precision": null,
+              "numeric_scale": null,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            }
+          ]
+        },
+        "courses": {
+          "name": "courses",
+          "unique_constraints": [
+            {
+              "columns": [
+                {
+                  "name": "dept_id",
+                  "table_idx": null
+                },
+                {
+                  "name": "id",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": true
+            },
+            {
+              "columns": [
+                {
+                  "name": "dept_id",
+                  "table_idx": null
+                },
+                {
+                  "name": "title",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": false
+            }
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "dept_id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": "constraints",
+              "fk_table": "departments",
+              "fk_column": "id"
+            },
+            {
+              "name": "title",
+              "column_type": "character varying",
+              "numeric_precision": null,
+              "numeric_scale": null,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "credits",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            }
+          ]
+        },
+        "students": {
+          "name": "students",
+          "unique_constraints": [
+            {
+              "columns": [
+                {
+                  "name": "id",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": true
+            }
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "full_name",
+              "column_type": "character varying",
+              "numeric_precision": null,
+              "numeric_scale": null,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "birth_year",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "grade_level",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            }
+          ]
+        },
+        "enrollments": {
+          "name": "enrollments",
+          "unique_constraints": [
+            {
+              "columns": [
+                {
+                  "name": "dept_id",
+                  "table_idx": null
+                },
+                {
+                  "name": "student_id",
+                  "table_idx": null
+                },
+                {
+                  "name": "course_id",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": true
+            }
+          ],
+          "columns": [
+            {
+              "name": "student_id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": "constraints",
+              "fk_table": "students",
+              "fk_column": "id"
+            },
+            {
+              "name": "course_id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": "constraints",
+              "fk_table": "courses",
+              "fk_column": "dept_id"
+            },
+            {
+              "name": "course_id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": "constraints",
+              "fk_table": "courses",
+              "fk_column": "id"
+            },
+            {
+              "name": "dept_id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": "constraints",
+              "fk_table": "courses",
+              "fk_column": "dept_id"
+            },
+            {
+              "name": "dept_id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": "constraints",
+              "fk_table": "courses",
+              "fk_column": "id"
+            },
+            {
+              "name": "semester",
+              "column_type": "character varying",
+              "numeric_precision": null,
+              "numeric_scale": null,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "grade",
+              "column_type": "character",
+              "numeric_precision": null,
+              "numeric_scale": null,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            }
+          ]
+        },
+        "instructors": {
+          "name": "instructors",
+          "unique_constraints": [
+            {
+              "columns": [
+                {
+                  "name": "email",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": false
+            },
+            {
+              "columns": [
+                {
+                  "name": "id",
+                  "table_idx": null
+                }
+              ],
+              "is_pk": true
+            }
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": false,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "full_name",
+              "column_type": "character varying",
+              "numeric_precision": null,
+              "numeric_scale": null,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            },
+            {
+              "name": "dept_id",
+              "column_type": "integer",
+              "numeric_precision": 32,
+              "numeric_scale": 0,
+              "is_nullable": true,
+              "fk_schema": "constraints",
+              "fk_table": "departments",
+              "fk_column": "id"
+            },
+            {
+              "name": "email",
+              "column_type": "character varying",
+              "numeric_precision": null,
+              "numeric_scale": null,
+              "is_nullable": true,
+              "fk_schema": null,
+              "fk_table": null,
+              "fk_column": null
+            }
+          ]
+        }
+      }
+    }
+  }
+}

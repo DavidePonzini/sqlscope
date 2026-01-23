@@ -1,0 +1,16 @@
+psycopg2
+pyyaml
+sqlparse
+sqlglot==28.0.0
+z3-solver
+python-dateutil
+
+# Dependencies for development
+ipython
+
+# Dependencies for building
+build
+autoapi
+pytest
+pytest-cov
+sphinx-autoapi

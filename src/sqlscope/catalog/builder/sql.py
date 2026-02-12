@@ -202,11 +202,11 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
 
         # Add Primary Key constraint to catalog
         # NOTE: needs to be perfomed after all columns have been added, since PKs can be defined at both column and table level
-        assert len(pk_col_names) > 0, 'Primary Key columns should have been identified'
-        catalog[schema_name][table_name].add_unique_constraint(
-            columns=pk_col_names,
-            constraint_type=ConstraintType.PRIMARY_KEY
-        )
+        if len(pk_col_names) > 0:
+            catalog[schema_name][table_name].add_unique_constraint(
+                columns=pk_col_names,
+                constraint_type=ConstraintType.PRIMARY_KEY
+            )
 
         # Add Unique constraints to catalog
         # NOTE: needs to be perfomed after all columns have been added, since Unique constraints can be defined at both column and table level

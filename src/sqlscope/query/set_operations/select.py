@@ -318,7 +318,7 @@ class Select(SetOperation, TokenizedSQL):
                 counter += 1
             elif clause_upper in ('WHERE', 'HAVING', 'ON', 'SELECT', 'COMPARISON'):
                 repl = replacement
-            elif clause_upper in ('IN', 'EXISTS', 'ALL/ANY'):
+            elif clause_upper in ('IN', 'EXISTS', 'ANY', 'ALL', 'ALL/ANY'):
                 repl = f'({replacement})'
 
             escaped = re.escape(subquery_sql)

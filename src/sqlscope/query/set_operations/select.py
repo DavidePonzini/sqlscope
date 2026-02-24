@@ -480,7 +480,7 @@ class Select(SetOperation, TokenizedSQL):
                         col_name = util.ast.column.get_real_name(col)
 
                         # Resolve which table this column belongs to
-                        table_idx = self._get_table_idx_for_column(col)
+                        table_idx = self._get_table_idx_for_column(col) or 0    # default to first table if not found, for incorrect queries that group by a column not in any table
                         
                         group_by_cols.add(ConstraintColumn(col_name, table_idx))
                 # Add GROUP BY constraint

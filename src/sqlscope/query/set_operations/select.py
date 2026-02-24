@@ -177,6 +177,15 @@ class Select(SetOperation, TokenizedSQL):
                     # If the aliased expression is a column, resolve its table index
                     real_name = util.ast.column.get_real_name(column.this)
                     table_idx = self._get_table_idx_for_column(column.this)
+                elif isinstance(column.this, exp.Subquery):
+                    # If the aliased expression is a subquery, resolve its output columns
+                    subq = Select(util.sql.remove_parentheses(column.this.sql()), catalog=self.catalog, search_path=self.search_path)
+                    if subq.output.columns:
+                        real_name = subq.output.columns[0].name
+                        table_idx = None  # Subquery outputs don't have a direct table index
+                    else:
+                        real_name = None
+                        table_idx = None
                 else:
                     table_idx = None
                 res_type = get_type(column.this, catalog=self.catalog, search_path=self.search_path)
@@ -229,9 +238,10 @@ class Select(SetOperation, TokenizedSQL):
                 if subq.output.columns:
                     first_col = subq.output.columns[0]
                     res_type = get_type(first_col, catalog=self.catalog, search_path=self.search_path)
-                
+
                     result.add_column(
                         name=first_col.name,
+                        real_name=first_col.real_name,
                         column_type=res_type.data_type_str,
                         is_nullable=res_type.nullable,
                         is_constant=res_type.constant

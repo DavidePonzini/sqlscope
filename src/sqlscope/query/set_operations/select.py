@@ -42,7 +42,7 @@ class Select(SetOperation, TokenizedSQL):
         self.search_path = search_path
 
         # Initialize cached properties
-        self._subqueries: list[tuple[Select, str]] | None = None
+        self._subqueries: list[tuple[Select, str, int]] | None = None
         self._referenced_tables: list[Table] | None = None
         self._all_constraints: list[Constraint] | None = None
         self._output_table: Table | None = None # half-computed output table, missing constraints
@@ -301,7 +301,7 @@ class Select(SetOperation, TokenizedSQL):
         return self._output_table
     # endregion
 
-    def strip_subqueries(self, replacement: str = 'NULL') -> 'Select':
+    def strip_subqueries(self, replacement: str = 'NULL', *, min_depth: int = 0) -> 'Select':
         '''Returns the SQL query with all subqueries removed (replaced by a context-aware placeholder).'''
 
         stripped_sql = self.sql
@@ -309,7 +309,10 @@ class Select(SetOperation, TokenizedSQL):
         subquery_sqls = extractors.extract_subqueries_tokens(self.sql)
 
         counter = 1
-        for subquery_sql, clause in subquery_sqls:
+        for subquery_sql, clause, depth in subquery_sqls:
+            if depth < min_depth:
+                continue
+
             repl = replacement  # default safe fallback
 
             clause_upper = (clause or '').upper()
@@ -376,12 +379,12 @@ class Select(SetOperation, TokenizedSQL):
     
     # NOTE: should this return a SetOp? What if the subquery is a UNION?
     @property
-    def subqueries(self) -> list[tuple['Select', str]]:
+    def subqueries(self) -> list[tuple['Select', str, int]]:
         '''
             Returns a list of subqueries as TokenizedSQL objects.
         
             Returns:
-                list[tuple[Select, str]]: A list of tuples containing subquery Select objects and their associated clause.
+                list[tuple[Select, str, int]]: A list of tuples containing subquery Select objects, their associated clause, and nesting depth.
         '''
         if self._subqueries is None:
             self._subqueries = []
@@ -397,7 +400,7 @@ class Select(SetOperation, TokenizedSQL):
                 # fallback: AST cannot be constructed, try to find subqueries via sqlparse
             subquery_sqls = extractors.extract_subqueries_tokens(self.sql)
 
-            for subquery_sql, clause in subquery_sqls:
+            for subquery_sql, clause, depth in subquery_sqls:
                 updated_catalog = self.catalog.copy()
                 # Include selected tables from the main query into the subquery's catalog (i.e. for correlated subqueries)
                 for table in self.referenced_tables:
@@ -405,7 +408,7 @@ class Select(SetOperation, TokenizedSQL):
                         updated_catalog[self.search_path][table.name] = table
 
                 subquery = Select(subquery_sql, catalog=updated_catalog, search_path=self.search_path, parent_query=self)
-                self._subqueries.append((subquery, clause))
+                self._subqueries.append((subquery, clause, depth))
     
         return self._subqueries
 
@@ -663,7 +666,7 @@ class Select(SetOperation, TokenizedSQL):
     
     @property
     def selects(self) -> list['Select']:
-        return [self] + [subquery for subquery, _ in self.subqueries]
+        return [self] + [subquery for subquery, _, _ in self.subqueries]
 
     # endregion
 

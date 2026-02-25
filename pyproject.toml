@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sqlscope"
-version = "1.0.6"
+version = "1.0.7"
 authors = [
   { name="Davide Ponzini", email="davide.ponzini95@gmail.com" },
 ]

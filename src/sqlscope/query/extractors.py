@@ -66,14 +66,16 @@ def extract_subqueries_ast(ast: E.Expression | None) -> list[E.Subquery]:
     return list(ast.find_all(E.Subquery))
 
 
-def extract_subqueries_tokens(sql: str) -> list[tuple[str, str]]:
+def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
     """
     Recursively extract all subqueries (including nested ones) from a SQL string.
-    Each result is a tuple (subquery_sql, clause), where clause is the nearest
-    keyword context (e.g., SELECT, FROM, WHERE, HAVING, JOIN, ON, etc.).
+
+    Returns a list of (subquery_sql, clause, depth), where:
+    - clause is the nearest keyword context (e.g., SELECT, FROM, WHERE, HAVING, JOIN, ON, etc.)
+    - depth is the subquery nesting depth (1 = directly inside outer query, 2 = nested within a subquery, ...)
     """
     parsed = sqlparse.parse(sql)
-    results: list[tuple[str, str]] = []
+    results: list[tuple[str, str, int]] = []
 
     def _has_select_inside(group: TokenList) -> bool:
         for t in group.flatten():
@@ -87,9 +89,9 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str]]:
             v = v[1:-1].strip()
         return v
 
-    def _walk(tokenlist: TokenList, current_clause: str | None = None):
+    def _walk(tokenlist: TokenList, current_clause: str | None = None, depth: int = 0) -> None:
         tokens = getattr(tokenlist, 'tokens', [])
-        for i, tok in enumerate(tokens):
+        for tok in tokens:
             if tok.is_whitespace:
                 continue
 
@@ -102,15 +104,18 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str]]:
                 current_clause = 'COMPARISON'
 
             if tok.is_group:
+                # Detect subquery in parentheses
                 if isinstance(tok, Parenthesis) and _has_select_inside(tok):
                     inner = _inner_text_once(tok)
-                    results.append((inner, current_clause or 'UNKNOWN'))
+                    subq_depth = depth + 1
+                    results.append((inner, current_clause or 'UNKNOWN', subq_depth))
 
-                    # Re-parse the inner subquery to search deeper
+                    # Re-parse inner and continue walking deeper with incremented depth
                     for inner_stmt in sqlparse.parse(inner):
-                        _walk(inner_stmt)
+                        _walk(inner_stmt, current_clause=None, depth=subq_depth)
                 else:
-                    _walk(tok, current_clause)
+                    # Normal group: keep same depth and clause context
+                    _walk(tok, current_clause=current_clause, depth=depth)
 
     for stmt in parsed:
         _walk(stmt)

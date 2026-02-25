@@ -78,8 +78,10 @@ class Select(SetOperation, TokenizedSQL):
 
                 subquery_sql = expr.this.sql()
                 subquery = Select(subquery_sql, catalog=self.catalog, search_path=self.search_path)
+                output = subquery.output
+                output.name = table_name_out
 
-                result.append(subquery.output)
+                result.append(output)
             
             # Table: look it up in the IN catalog
             elif isinstance(expr, exp.Table):
@@ -104,7 +106,6 @@ class Select(SetOperation, TokenizedSQL):
                     result.append(table)
         
         from_expr = self.ast.args.get('from_')
-        
 
         if from_expr:
             add_tables_from_expression(from_expr.this)

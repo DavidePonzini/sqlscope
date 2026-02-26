@@ -37,7 +37,7 @@ def _extract_datatype(column_exp: exp.ColumnDef) -> tuple[str, int | None, int |
     '''Extracts datatype information from a ColumnDef expression.'''
 
     datatype_exp = column_exp.kind
-    assert isinstance(datatype_exp, exp.DataType), 'Expected DataType expression in ColumnDef'
+    assert isinstance(datatype_exp, exp.DataType), f'Expected DataType expression in ColumnDef. Offending expression: {column_exp}.'
 
     datatype = datatype_exp.this.value
 
@@ -70,7 +70,7 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
     for statement in statements:
         table_exp = statement.find(exp.Table)
 
-        assert table_exp is not None, 'Expected Table expression in CREATE TABLE statement'
+        assert table_exp is not None, f'Expected Table expression in CREATE TABLE statement. Offending statement: {statement}. Query: {sql_string}'
 
         # "CREATE TABLE <schema_name>.<table_name>" handling
         table_name = _get_table_name(table_exp)
@@ -105,13 +105,13 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
             fk_column_names = [_get_identifier_name(col_exp) for col_exp in fk_id_exps]
 
             ref_exp = fk_exp.find(exp.Reference)
-            assert ref_exp is not None, 'Expected Reference expression in Foreign Key definition'
+            assert ref_exp is not None, f'Expected Reference expression in Foreign Key definition. Offending expression: {fk_exp}. Query: {sql_string}'
 
             ref_schema_exp = ref_exp.this
-            assert isinstance(ref_schema_exp, exp.Schema), 'Expected Schema expression in Foreign Key reference'
+            assert isinstance(ref_schema_exp, exp.Schema), f'Expected Schema expression in Foreign Key reference. Offending expression: {ref_exp}. Query: {sql_string}'
 
             ref_table_exp = ref_schema_exp.this
-            assert isinstance(ref_table_exp, exp.Table), 'Expected Table expression in Foreign Key reference'
+            assert isinstance(ref_table_exp, exp.Table), f'Expected Table expression in Foreign Key reference. Offending expression: {ref_schema_exp}. Query: {sql_string}'
 
             ref_schema_name = _get_schema_name(ref_table_exp, search_path)
             ref_table_name = _get_table_name(ref_table_exp)
@@ -145,19 +145,19 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
 
             if fk_constraint:
                 fk_reference = fk_constraint.kind
-                assert isinstance(fk_reference, exp.Reference), 'Expected Reference expression in Foreign Key constraint'
+                assert isinstance(fk_reference, exp.Reference), f'Expected Reference expression in Foreign Key constraint. Offending constraint: {fk_constraint}. Query: {sql_string}'
 
                 fk_schema_exp = fk_reference.this
-                assert isinstance(fk_schema_exp, exp.Schema), 'Expected Schema expression in Foreign Key constraint'
+                assert isinstance(fk_schema_exp, exp.Schema), f'Expected Schema expression in Foreign Key constraint. Offending expression: {fk_reference}. Query: {sql_string}'
                 
                 fk_table_exp = fk_schema_exp.this
-                assert isinstance(fk_table_exp, exp.Table), 'Expected Table expression in Foreign Key constraint'
+                assert isinstance(fk_table_exp, exp.Table), f'Expected Table expression in Foreign Key constraint. Offending expression: {fk_schema_exp}. Query: {sql_string}'
 
                 fk_schema_name = _get_schema_name(fk_table_exp, search_path)
                 fk_table_name = _get_table_name(fk_table_exp)
 
                 fk_column_exp = fk_schema_exp.expressions[0]
-                assert isinstance(fk_column_exp, exp.Identifier), 'Expected Identifier expression in Foreign Key column'
+                assert isinstance(fk_column_exp, exp.Identifier), f'Expected Identifier expression in Foreign Key column. Offending expression: {fk_column_exp}. Query: {sql_string}'
                 fk_column_name = _get_identifier_name(fk_column_exp)
             elif column_name in fks:
                 fk_schema_name, fk_table_name, fk_column_name = fks[column_name]
@@ -185,14 +185,14 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
         if pk_exp:
             for ordered_exp in pk_exp.expressions:
                 col_exp = ordered_exp.find(exp.Column)
-                assert col_exp is not None, 'Expected Column expression in Primary Key definition'
+                assert col_exp is not None, f'Expected Column expression in Primary Key definition. Offending expression: {ordered_exp}. Query: {sql_string}'
                 col_name = _get_column_name(col_exp)
                 pk_col_names.add(col_name)
 
         # Process table-level Unique constraints
         for unique_exp in unique_exps:
             unique_schema_exp = unique_exp.this
-            assert isinstance(unique_schema_exp, exp.Schema), 'Expected Schema expression in Unique constraint'
+            assert isinstance(unique_schema_exp, exp.Schema), f'Expected Schema expression in Unique constraint. Offending expression: {unique_exp}. Query: {sql_string}'
 
             unique_column_names = set()
             for col_id_exp in unique_exp.expressions:

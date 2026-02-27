@@ -184,9 +184,9 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
         # Process table-level Primary Key constraint
         if pk_exp:
             for ordered_exp in pk_exp.expressions:
-                col_exp = ordered_exp.find(exp.Column)
-                assert col_exp is not None, f'Expected Column expression in Primary Key definition. Offending expression: {ordered_exp}. Query: {sql_string}'
-                col_name = _get_column_name(col_exp)
+                col_exp = ordered_exp.find(exp.Identifier)
+                assert col_exp is not None, f'Expected Identifier expression in Primary Key definition. Offending expression: {ordered_exp}. Query: {sql_string}'
+                col_name = _get_identifier_name(col_exp)
                 pk_col_names.add(col_name)
 
         # Process table-level Unique constraints

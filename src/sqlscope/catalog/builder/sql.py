@@ -191,6 +191,10 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
 
         # Process table-level Unique constraints
         for unique_exp in unique_exps:
+            if unique_exp.this is None:
+                # Inline UNIQUE constraint, e.g., "email VARCHAR UNIQUE"
+                continue
+
             unique_schema_exp = unique_exp.this
             assert isinstance(unique_schema_exp, exp.Schema), f'Expected Schema expression in Unique constraint. Offending expression: {unique_exp}. Query: {sql_string}'
 

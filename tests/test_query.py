@@ -51,9 +51,12 @@ def test_query_cte_extraction(sql, expected_ctes, expected_main_query):
 # endregion
 
 # region Properties
-def test_distinct_true():
-    sql = 'SELECT DISTINCT id, name FROM users'
-
+@pytest.mark.parametrize('sql', [
+    'SELECT DISTINCT id, name FROM users',
+    'SELECT DISTINCT t1.id FROM t1 JOIN t2 ON t1.id = t2.id',
+    'SELECT DISTINCT name FROM t1 JOIN t2 ON t1.id = t2.id'
+])
+def test_distinct_true(sql):
     query = Query(sql)
 
     assert isinstance(query.main_query, Select)
@@ -247,6 +250,12 @@ def constraint(columns: list[tuple[str, int | None]]) -> Constraint:
         constraint([('cid', 0), ('cname', 0), ('c', None)]),
         constraint([('cid', 0), ('cname', 0)]),
         constraint([('cid', 0)]),
+    ]),
+    ('SELECT DISTINCT name FROM t1 JOIN t2 ON t1.id = t2.id;', 'constraints', [
+        constraint([('name', None)]),
+    ]),
+    ('SELECT DISTINCT c.city FROM customer c JOIN store s ON c.cid = s.sid;', 'miedema', [
+        constraint([('city', 0)]),
     ]),
     
 ])

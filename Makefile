@@ -14,6 +14,9 @@ endif
 
 .PHONY: install build uninstall documentation test upload download clean coverage
 
+install: uninstall build
+	$(VENV_BIN)/python -m pip install ./dist/*.whl
+
 $(VENV):
 	python -m venv --clear $(VENV)
 	touch -a $(REQUIREMENTS)
@@ -22,9 +25,6 @@ $(VENV):
 $(VENV)_upgrade: $(VENV)
 	$(VENV_BIN)/python -m pip install --upgrade -r $(REQUIREMENTS)
 
-
-install: uninstall build
-	$(VENV_BIN)/python -m pip install ./dist/*.whl
 
 build: $(VENV)
 	rm -rf dist/

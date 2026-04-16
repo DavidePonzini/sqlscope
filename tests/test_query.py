@@ -257,6 +257,13 @@ def constraint(columns: list[tuple[str, int | None]]) -> Constraint:
     ('SELECT DISTINCT c.city FROM customer c JOIN store s ON c.cid = s.sid;', 'miedema', [
         constraint([('city', 0)]),
     ]),
+    ('SELECT c.city FROM customer c JOIN store s ON c.cid = s.sid GROUP BY c.city;', 'miedema', [
+        constraint([('city', 0)]),
+    ]),
+    ('SELECT DISTINCT c.city FROM customer c JOIN store s ON c.cid = s.sid GROUP BY c.city;', 'miedema', [
+        constraint([('city', 0)]),
+        constraint([('city', 0)]),
+    ]),
     
 ])
 def test_query_constraints(sql, catalog, expected_constraints):

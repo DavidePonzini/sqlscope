@@ -546,9 +546,9 @@ class Select(SetOperation, TokenizedSQL):
                         
                         return ConstraintColumn(col_name, table_idx)
                     
-                    # Separate DISTINCT constraints to avoid merging them with join equalities
-                    distinct_constraints = [c for c in all_constraints if c.constraint_type == ConstraintType.DISTINCT]
-                    all_constraints = [c for c in all_constraints if c.constraint_type != ConstraintType.DISTINCT]
+                    # Separate DISTINCT/GROUP BY constraints to avoid merging them with join equalities
+                    other_constraints = [c for c in all_constraints if c.constraint_type not in (ConstraintType.UNIQUE, ConstraintType.PRIMARY_KEY)]
+                    all_constraints = [c for c in all_constraints if c.constraint_type in (ConstraintType.UNIQUE, ConstraintType.PRIMARY_KEY)]
                     
                     # Normalize all equalities as UniqueConstraintColumns
                     uc_equalities = [(resolve(left_col), resolve(right_col)) for left_col, right_col in equalities]
@@ -578,7 +578,7 @@ class Select(SetOperation, TokenizedSQL):
                                 # For each column in the equality group, create a new constraint with all equivalences replaced by that column
                                 new_constraints.append(Constraint(constraint.columns - equality_group | { col }))
 
-                    all_constraints = new_constraints + distinct_constraints
+                    all_constraints = new_constraints + other_constraints
 
                 # Keep only constraints that are valid for the output columns
                 for unique_constraint in all_constraints:

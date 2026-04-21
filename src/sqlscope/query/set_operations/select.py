@@ -187,6 +187,10 @@ class Select(SetOperation, TokenizedSQL):
                     else:
                         real_name = None
                         table_idx = None
+                elif isinstance(column.this, exp.Func):
+                    # If the aliased expression is a function, use the function name as the real name
+                    real_name = f'_{util.ast.function.get_name(column.this)}'
+                    table_idx = None
                 else:
                     table_idx = None
                 res_type = get_type(column.this, catalog=self.catalog, search_path=self.search_path)

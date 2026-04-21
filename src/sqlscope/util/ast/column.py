@@ -1,15 +1,14 @@
 '''Utility functions related to SQL columns in ASTs made with sqlglot.'''
 
-import sqlglot.optimizer.normalize
 from sqlglot import exp
-from copy import deepcopy
 
 def get_real_name(column: exp.Column | exp.Alias) -> str:
     '''Returns the column real name, in lowercase if unquoted.'''
 
     col = column.find(exp.Column)
     if col is None:
-        return column.alias_or_name
+        # return column.alias_or_name
+        return ''
 
     quoted = col.this.quoted
     name = col.this.name

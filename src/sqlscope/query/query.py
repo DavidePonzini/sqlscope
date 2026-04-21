@@ -153,8 +153,32 @@ class Query(TokenizedSQL):
                 if no_subqueries.ast is None:
                     return result
 
+                def add_table_sources(table) -> None:
+                    if table.cte_idx is not None:
+                        result.update(_output_columns_source_recursive(self.ctes[table.cte_idx]))
+                    else:
+                        result.update(
+                            (table.schema_name, table.real_name, col.name)
+                            for col in table.columns
+                        )
+
                 for expression in no_subqueries.ast.expressions:
+                    if isinstance(expression, exp.Star):
+                        for table in so.referenced_tables:
+                            add_table_sources(table)
+                        continue
+
+                    if isinstance(expression, exp.Column) and isinstance(expression.this, exp.Star):
+                        table_name = util.ast.column.get_table(expression)
+                        table = next((t for t in so.referenced_tables if t.name == table_name), None)
+                        if table is not None:
+                            add_table_sources(table)
+                        continue
+
                     for column in expression.find_all(exp.Column):
+                        if isinstance(column.this, exp.Star):
+                            continue
+
                         column_name = util.ast.column.get_real_name(column)
                         table_name = util.ast.column.get_table(column)
 

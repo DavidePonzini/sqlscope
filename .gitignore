@@ -1,7 +1,7 @@
 # CUSTOM
 test_q.sql
 test_s?.sql
-
+.codex
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

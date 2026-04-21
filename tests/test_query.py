@@ -285,6 +285,31 @@ def test_query_constraints(sql, catalog, expected_constraints):
         [ ('miedema', 'customer', 'cid') ]
     ),
     (
+        'SELECT * from customer JOIN store ON customer.cid = store.sid;',
+        'miedema',
+        [
+            ('miedema', 'customer', 'cid'),
+            ('miedema', 'customer', 'cname'),
+            ('miedema', 'customer', 'city'),
+            ('miedema', 'customer', 'street'),
+            ('miedema', 'store', 'sid'),
+            ('miedema', 'store', 'sname'),
+            ('miedema', 'store', 'city'),
+            ('miedema', 'store', 'street'),
+        ]
+    ),
+    (
+        # select `t.*`
+        'SELECT t.* FROM customer t JOIN store s ON t.cid = s.sid;',
+        'miedema',
+        [
+            ('miedema', 'customer', 'cid'),
+            ('miedema', 'customer', 'cname'),
+            ('miedema', 'customer', 'city'),
+            ('miedema', 'customer', 'street'),
+        ]
+    ),
+    (
         '''
             WITH temp AS (
                 SELECT cid c, street + cname AS col2 FROM customer

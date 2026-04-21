@@ -50,9 +50,6 @@ class Table:
             
         self.columns.append(column)
 
-        import dav_tools
-        dav_tools.messages.debug(f'Added column {column} to table {self.name}')
-
         return column
     
     def has_column(self, column_name: str) -> bool:

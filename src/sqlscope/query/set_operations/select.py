@@ -360,22 +360,11 @@ class Select(SetOperation, TokenizedSQL):
         '''Returns a list of join equality conditions used in the main query.'''
         result: list[tuple[exp.Column, exp.Column]] = []
 
-        def extract_column_equalities(expr: exp.Expression) -> list[tuple[exp.Column, exp.Column]]:
-            equalities = []
-            conjuncts = util.ast.extract_CNF(expr)
-            for conj in conjuncts:
-                if isinstance(conj, exp.EQ):
-                    left = conj.args.get('this')
-                    right = conj.args.get('expression')
-                    if isinstance(left, exp.Column) and isinstance(right, exp.Column):
-                        equalities.append((left, right))
-            return equalities
-
         for join_condition in self.get_join_conditions():
-            result.extend(extract_column_equalities(join_condition))
+            result.extend(util.ast.extract_column_equalities(join_condition))
 
         if self.where:
-            result.extend(extract_column_equalities(self.where))
+            result.extend(util.ast.extract_column_equalities(self.where))
 
         return result
 

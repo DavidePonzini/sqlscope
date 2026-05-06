@@ -53,3 +53,14 @@ def extract_CNF(expr) -> list[exp.Expression]:
         result.append(conj)
 
     return result
+
+def extract_column_equalities(expr: exp.Expression) -> list[tuple[exp.Column, exp.Column]]:
+    equalities = []
+    conjuncts = extract_CNF(expr)
+    for conj in conjuncts:
+        if isinstance(conj, exp.EQ):
+            left = conj.args.get('this')
+            right = conj.args.get('expression')
+            if isinstance(left, exp.Column) and isinstance(right, exp.Column):
+                equalities.append((left, right))
+    return equalities

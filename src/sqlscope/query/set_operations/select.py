@@ -349,6 +349,13 @@ class Select(SetOperation, TokenizedSQL):
         return self._output_table
     # endregion
 
+    def strip_filters(self) -> 'Select':
+        '''Returns the SQL query with all FILTER(...) clauses removed.'''
+        stripped_sql = extractors.strip_filters(self.sql)
+
+        return Select(stripped_sql, catalog=self.catalog, search_path=self.search_path, parent_query=self.parent_query)
+
+
     def strip_subqueries(self, replacement: str = 'NULL', *, min_depth: int = 0) -> 'Select':
         '''Returns the SQL query with all subqueries removed (replaced by a context-aware placeholder).'''
 
@@ -703,7 +710,7 @@ class Select(SetOperation, TokenizedSQL):
     
     @property
     def selects(self) -> list['Select']:
-        result = [self]
+        result: list['Select'] = [self]
         for subquery, _, _ in self.subqueries:
             result.extend(subquery.selects)
         return result

@@ -216,6 +216,48 @@ def test_from_subquery_scope_is_left_to_right():
     assert {table.name for table in sq1.referenced_tables} == {'c'}
     assert {table.name for table in sq2.referenced_tables} == {'s', 'c', 'sq1'}
 
+def test_select_strip_filters_removes_filter_clauses():
+    query = Select(
+        'SELECT COUNT(*) FILTER (WHERE amount > 1), '
+        'SUM(total) filter (WHERE total IS NOT NULL) '
+        'FROM orders'
+    )
+
+    stripped = query.strip_filters()
+
+    assert isinstance(stripped, Select)
+    assert 'FILTER' not in stripped.sql.upper()
+    assert ' '.join(stripped.sql.split()) == 'SELECT COUNT(*) , SUM(total) FROM orders'
+
+def test_select_strip_subqueries_replaces_subqueries_by_clause():
+    query = Select(
+        'SELECT * FROM (SELECT id FROM users) u '
+        'JOIN orders o ON o.user_id IN (SELECT user_id FROM items)'
+    )
+
+    stripped = query.strip_subqueries()
+
+    assert isinstance(stripped, Select)
+    assert ' '.join(stripped.sql.split()) == (
+        'SELECT * FROM __subq1 u JOIN orders o ON o.user_id IN (NULL)'
+    )
+
+def test_select_strip_subqueries_respects_min_depth():
+    query = Select(
+        'SELECT * FROM users '
+        'WHERE id IN ('
+        'SELECT user_id FROM orders '
+        'WHERE amount > (SELECT AVG(amount) FROM orders)'
+        ')'
+    )
+
+    stripped = query.strip_subqueries(min_depth=2)
+
+    assert ' '.join(stripped.sql.split()) == (
+        'SELECT * FROM users WHERE id IN '
+        '(SELECT user_id FROM orders WHERE amount > NULL)'
+    )
+
 # TODO: Implement tests for set operations properties
 @pytest.mark.xfail(reason="Not yet implemented")
 def test_set_operation_properties():

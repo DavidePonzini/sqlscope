@@ -121,3 +121,36 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
         _walk(stmt)
 
     return results
+
+def strip_filters(sql: str) -> str:
+    """
+    Removes FILTER (...) clauses from aggregate functions in the SQL query.
+
+    This function uses sqlparse to tokenize the SQL and remove FILTER clauses.
+    """
+    def _strip_tokenlist(tokenlist: sqlparse.sql.TokenList) -> str:
+        parts: list[str] = []
+        tokens = tokenlist.tokens
+        idx = 0
+
+        while idx < len(tokens):
+            token = tokens[idx]
+
+            if token.normalized.upper() == 'FILTER':
+                idx += 1
+                while idx < len(tokens) and tokens[idx].is_whitespace:
+                    idx += 1
+                if idx < len(tokens) and isinstance(tokens[idx], Parenthesis):
+                    idx += 1
+                continue
+
+            if token.is_group:
+                parts.append(_strip_tokenlist(token))
+            else:
+                parts.append(token.value)
+
+            idx += 1
+
+        return ''.join(parts)
+
+    return _strip_tokenlist(sqlparse.parse(sql)[0])

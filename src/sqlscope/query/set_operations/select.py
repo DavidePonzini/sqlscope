@@ -10,6 +10,7 @@ import sqlglot.errors
 from sqlglot import exp
 import re
 from copy import deepcopy
+from typing import Iterable
 
 
 class Select(SetOperation, TokenizedSQL):
@@ -21,6 +22,7 @@ class Select(SetOperation, TokenizedSQL):
                  catalog: Catalog = Catalog(),
                  search_path: str = 'public',
                  parent_query: 'Select | None' = None,
+                 visible_parent_tables: list[Table] | None = None,
         ) -> None:
         '''
         Initializes a SelectStatement object.
@@ -38,6 +40,9 @@ class Select(SetOperation, TokenizedSQL):
 
         self.catalog = catalog
         '''Catalog representing tables that can be referenced in this query.'''
+
+        self.visible_parent_tables = deepcopy(visible_parent_tables) if visible_parent_tables is not None else []
+        '''Tables from outer scopes that are visible for correlated references in this query.'''
         
         self.search_path = search_path
 
@@ -62,6 +67,73 @@ class Select(SetOperation, TokenizedSQL):
             self.typed_ast = None        
         
     # region Auxiliary
+    def _add_tables_to_catalog(self, catalog: Catalog, tables: Iterable[Table]) -> None:
+        '''Adds visible tables to a catalog for correlated subquery resolution.'''
+        for table in tables:
+            if not catalog.has_table(schema_name=table.schema_name, table_name=table.name):
+                catalog[table.schema_name][table.name] = deepcopy(table)
+
+    def _resolve_from_expression(self, expr: exp.Expression, visible_tables: list[Table]) -> Table | None:
+        '''Resolves a FROM/JOIN expression into the table it contributes to this query scope.'''
+        if isinstance(expr, exp.Subquery):
+            table_name_out = util.ast.subquery.get_name(expr)
+
+            updated_catalog = self.catalog.copy()
+            self._add_tables_to_catalog(updated_catalog, visible_tables)
+
+            subquery_sql = expr.this.sql()
+            subquery = Select(
+                subquery_sql,
+                catalog=updated_catalog,
+                search_path=self.search_path,
+                parent_query=self,
+                visible_parent_tables=visible_tables,
+            )
+            output = subquery.output
+            output.name = table_name_out
+            return output
+
+        if isinstance(expr, exp.Table):
+            schema_name = util.ast.table.get_schema(expr) or self.search_path
+            table_name_in = util.ast.table.get_real_name(expr)
+            table_name_out = util.ast.table.get_name(expr)
+
+            if self.catalog.has_table(schema_name=schema_name, table_name=table_name_in):
+                table_in = self.catalog[schema_name][table_name_in]
+                table = deepcopy(table_in)
+                table.name = table_name_out
+                return table
+
+            table = Table(name=table_name_in, schema_name=schema_name)
+            table.name = table_name_out
+            return table
+
+        return None
+
+    def _get_from_scope_prefixes(self) -> list[list[Table]]:
+        '''Returns the visible table scope before each direct subquery in FROM/JOIN order.'''
+        if not self.ast:
+            return []
+
+        visible_tables = deepcopy(self.visible_parent_tables)
+        scopes: list[list[Table]] = []
+
+        from_expr = self.ast.args.get('from_')
+        from_items: list[exp.Expression] = []
+        if from_expr:
+            from_items.append(from_expr.this)
+        from_items.extend(join.this for join in self.ast.args.get('joins', []))
+
+        for expr in from_items:
+            if isinstance(expr, exp.Subquery):
+                scopes.append(deepcopy(visible_tables))
+
+            table = self._resolve_from_expression(expr, visible_tables)
+            if table is not None:
+                visible_tables.append(table)
+
+        return scopes
+
     def _get_referenced_tables(self) -> list[Table]:
         '''Extracts referenced tables from the SQL query and returns them as a Catalog object.'''
 
@@ -70,48 +142,20 @@ class Select(SetOperation, TokenizedSQL):
         if not self.ast:
             return result
 
-        def add_tables_from_expression(expr: exp.Expression) -> None:
-            '''Recursively adds tables from an expression to the result catalog.'''
-            # Subquery: get its output columns
-            if isinstance(expr, exp.Subquery):
-                table_name_out = util.ast.subquery.get_name(expr)
-
-                subquery_sql = expr.this.sql()
-                subquery = Select(subquery_sql, catalog=self.catalog, search_path=self.search_path)
-                output = subquery.output
-                output.name = table_name_out
-
-                result.append(output)
-            
-            # Table: look it up in the IN catalog
-            elif isinstance(expr, exp.Table):
-                # schema name
-                schema_name = util.ast.table.get_schema(expr) or self.search_path
-                table_name_in = util.ast.table.get_real_name(expr)
-                table_name_out = util.ast.table.get_name(expr)
-
-                # check if the table exists in the catalog
-                if self.catalog.has_table(schema_name=schema_name, table_name=table_name_in):
-                    # Table exists
-                    table_in = self.catalog[schema_name][table_name_in]
-
-                    # Create a copy of the table with the output name
-                    table = deepcopy(table_in)
-                    table.name = table_name_out
-                    result.append(table)
-                else:
-                    # Table does not exist, add as empty table
-                    table = Table(name=table_name_in, schema_name=schema_name)
-                    table.name = table_name_out
-                    result.append(table)
-        
+        visible_tables = deepcopy(self.visible_parent_tables)
         from_expr = self.ast.args.get('from_')
 
         if from_expr:
-            add_tables_from_expression(from_expr.this)
+            table = self._resolve_from_expression(from_expr.this, visible_tables)
+            if table is not None:
+                result.append(table)
+                visible_tables.append(table)
             
         for join in self.ast.args.get('joins', []):
-            add_tables_from_expression(join.this)
+            table = self._resolve_from_expression(join.this, visible_tables)
+            if table is not None:
+                result.append(table)
+                visible_tables.append(table)
 
         return result
 
@@ -381,26 +425,24 @@ class Select(SetOperation, TokenizedSQL):
         '''
         if self._subqueries is None:
             self._subqueries = []
-            # try to find subqueries via sqlglot AST, since it's more reliable
-            # if self.ast:
-            #     subquery_asts = extractors.extract_subqueries_ast(self.ast)
-            #     for subquery_ast in subquery_asts:
-            #         while not isinstance(subquery_ast, exp.Select):
-            #             subquery_ast = subquery_ast.this
-            #         subquery = Select(subquery_ast.sql(), catalog=self.catalog, search_path=self.search_path)
-            #         self._subqueries.append(subquery)
-            # else:
-                # fallback: AST cannot be constructed, try to find subqueries via sqlparse
-            subquery_sqls = extractors.extract_subqueries_tokens(self.sql)
+            subquery_sqls = [item for item in extractors.extract_subqueries_tokens(self.sql) if item[2] == 1]
+            from_scopes = iter(self._get_from_scope_prefixes())
 
             for subquery_sql, clause, depth in subquery_sqls:
                 updated_catalog = self.catalog.copy()
-                # Include selected tables from the main query into the subquery's catalog (i.e. for correlated subqueries)
-                for table in self.referenced_tables:
-                    if not updated_catalog.has_table(schema_name=table.schema_name, table_name=table.name):
-                        updated_catalog[self.search_path][table.name] = table
+                if clause.upper() in ('FROM', 'JOIN'):
+                    visible_tables = next(from_scopes, [])
+                else:
+                    visible_tables = self.referenced_tables
 
-                subquery = Select(subquery_sql, catalog=updated_catalog, search_path=self.search_path, parent_query=self)
+                self._add_tables_to_catalog(updated_catalog, visible_tables)
+                subquery = Select(
+                    subquery_sql,
+                    catalog=updated_catalog,
+                    search_path=self.search_path,
+                    parent_query=self,
+                    visible_parent_tables=visible_tables,
+                )
                 self._subqueries.append((subquery, clause, depth))
     
         return self._subqueries
@@ -416,12 +458,9 @@ class Select(SetOperation, TokenizedSQL):
     def referenced_tables(self) -> list[Table]:
         if self._referenced_tables is None:
             self._referenced_tables = self._get_referenced_tables()
-
-            if self.parent_query is not None:
-                # Include tables from parent query (for correlated subqueries)
-                for table in self.parent_query.referenced_tables:
-                    if not any(t.name == table.name and t.schema_name == table.schema_name for t in self._referenced_tables):
-                        self._referenced_tables.append(table)
+            for table in self.visible_parent_tables:
+                if not any(t.name == table.name and t.schema_name == table.schema_name for t in self._referenced_tables):
+                    self._referenced_tables.append(deepcopy(table))
         
         return self._referenced_tables
     
@@ -664,7 +703,10 @@ class Select(SetOperation, TokenizedSQL):
     
     @property
     def selects(self) -> list['Select']:
-        return [self] + [subquery for subquery, _, _ in self.subqueries]
+        result = [self]
+        for subquery, _, _ in self.subqueries:
+            result.extend(subquery.selects)
+        return result
 
     # endregion
 

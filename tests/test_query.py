@@ -200,6 +200,22 @@ def test_query_selects(sql, expected_selects):
     query = Query(sql)
     assert len(query.selects) == expected_selects, f"Expected {expected_selects} selects, got {len(query.selects)}"
 
+def test_from_subquery_scope_is_left_to_right():
+    catalog_db = load_catalog('datasets/catalogs/miedema.json')
+    sql = '''
+        SELECT *
+        FROM customer c,
+             (SELECT c.cid AS cid1) sq1,
+             (SELECT c.cid AS cid2, sq1.cid1 AS prev_id FROM store s) sq2,
+             transaction t
+    '''
+
+    query = Query(sql, catalog=catalog_db, search_path='miedema')
+    sq1, sq2 = [subquery for subquery, _, _ in query.main_query.subqueries]
+
+    assert {table.name for table in sq1.referenced_tables} == {'c'}
+    assert {table.name for table in sq2.referenced_tables} == {'s', 'c', 'sq1'}
+
 # TODO: Implement tests for set operations properties
 @pytest.mark.xfail(reason="Not yet implemented")
 def test_set_operation_properties():

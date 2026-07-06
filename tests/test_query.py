@@ -258,6 +258,64 @@ def test_select_strip_subqueries_respects_min_depth():
         '(SELECT user_id FROM orders WHERE amount > NULL)'
     )
 
+def test_natural_join_equalities_simple():
+    catalog_db = load_catalog('datasets/catalogs/miedema.json')
+    query = Query(
+        'SELECT * FROM customer NATURAL JOIN store',
+        catalog=catalog_db,
+        search_path='miedema',
+    )
+
+    assert query.main_query.selects[0].get_natural_join_equalities() == {
+        'street': {0, 1},
+        'city': {0, 1},
+    }
+
+def test_natural_join_equalities_chain_accumulates_previous_natural_joins():
+    catalog_db = load_catalog('datasets/catalogs/miedema.json')
+    query = Query(
+        'SELECT * FROM customer NATURAL JOIN transaction NATURAL JOIN shoppinglist',
+        catalog=catalog_db,
+        search_path='miedema',
+    )
+
+    assert query.main_query.selects[0].get_natural_join_equalities() == {
+        'cid': {0, 1, 2},
+        'pid': {1, 2},
+        'date': {1, 2},
+        'quantity': {1, 2},
+    }
+
+def test_natural_join_equalities_after_regular_join():
+    catalog_db = load_catalog('datasets/catalogs/miedema.json')
+    query = Query(
+        'SELECT * FROM customer NATURAL JOIN transaction '
+        'JOIN product ON transaction.pid = product.pid '
+        'NATURAL JOIN shoppinglist',
+        catalog=catalog_db,
+        search_path='miedema',
+    )
+
+    assert query.main_query.selects[0].get_natural_join_equalities() == {
+        'cid': {0, 1, 3},
+        'pid': {1, 2, 3},
+        'date': {1, 3},
+        'quantity': {1, 3},
+    }
+
+def test_natural_join_equalities_before_regular_join():
+    catalog_db = load_catalog('datasets/catalogs/miedema.json')
+    query = Query(
+        'SELECT * FROM customer NATURAL JOIN store JOIN transaction ON store.sid = transaction.sid',
+        catalog=catalog_db,
+        search_path='miedema',
+    )
+
+    assert query.main_query.selects[0].get_natural_join_equalities() == {
+        'street': {0, 1},
+        'city': {0, 1},
+    }
+
 # TODO: Implement tests for set operations properties
 @pytest.mark.xfail(reason="Not yet implemented")
 def test_set_operation_properties():

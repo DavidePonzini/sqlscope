@@ -104,6 +104,7 @@ class Select(SetOperation, TokenizedSQL):
                 table.name = table_name_out
                 return table
 
+            # If the table is not found in the catalog, create a placeholder Table object with the given name and schema.
             table = Table(name=table_name_in, schema_name=schema_name)
             table.name = table_name_out
             return table
@@ -349,6 +350,13 @@ class Select(SetOperation, TokenizedSQL):
         return self._output_table
     # endregion
 
+    def get_table_idx(self, table_name: str) -> int | None:
+        '''Returns the index of the table with the given name in the referenced tables.'''
+        for idx, table in enumerate(self.referenced_tables):
+            if table.name == table_name:
+                return idx
+        return None
+
     def strip_filters(self) -> 'Select':
         '''Returns the SQL query with all FILTER(...) clauses removed.'''
         stripped_sql = extractors.strip_filters(self.sql)
@@ -418,6 +426,54 @@ class Select(SetOperation, TokenizedSQL):
             result.extend(util.ast.extract_column_equalities(self.where))
 
         return result
+    
+    def get_natural_join_equalities(self) -> dict[str, set[int]]:
+        '''Returns a list of equivalent column pairs for natural joins, represented as a dictionary mapping column names to sets of table indices.'''
+
+        result: dict[str, set[int]] = {}
+
+        if not self.ast:
+            return result
+        
+        left_table = self.ast.args.get('from_')
+        if not left_table:
+            return result
+        
+        left_table = self._resolve_from_expression(left_table.this, self.visible_parent_tables)
+        left_tables = [left_table] if left_table else []
+
+        for join in self.ast.args.get('joins', []):
+            right_table = self._resolve_from_expression(join.this, self.visible_parent_tables)
+            if not right_table:
+                continue
+            
+            method = (join.args.get('method') or '').upper()
+            if method != 'NATURAL':
+                # not a NATURAL JOIN, so we don't need to compute natural join equalities, but we still need to update the left_tables dictionary for subsequent joins
+                left_tables.append(right_table)
+                continue
+
+            right_table_idx = self.get_table_idx(right_table.name)
+            if right_table_idx is None:
+                continue
+
+            for right_column in right_table.columns:
+                for left_table in left_tables:
+                    left_table_idx = self.get_table_idx(left_table.name)
+                    if left_table_idx is None:
+                        continue
+
+                    for left_column in left_table.columns:
+                        if left_column.name == right_column.name:
+                            if left_column.name not in result:
+                                result[left_column.name] = {left_table_idx, right_table_idx}
+                            else:
+                                result[left_column.name].update({left_table_idx, right_table_idx})
+
+            left_tables.append(right_table)
+            
+        return result
+
 
     # region Properties
     

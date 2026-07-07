@@ -380,7 +380,7 @@ class Select(SetOperation, TokenizedSQL):
 
             clause_upper = (clause or '').upper()
 
-            if clause_upper in ('FROM', 'JOIN'):
+            if 'FROM' in clause_upper or 'JOIN' in clause_upper:
                 repl = f'__subq{counter}'
                 counter += 1
             elif clause_upper in ('WHERE', 'HAVING', 'ON', 'SELECT', 'COMPARISON'):
@@ -488,7 +488,7 @@ class Select(SetOperation, TokenizedSQL):
     @property
     def subqueries(self) -> list[tuple['Select', str, int]]:
         '''
-            Returns a list of subqueries as TokenizedSQL objects.
+            Returns a list of subqueries as Select objects.
         
             Returns:
                 list[tuple[Select, str, int]]: A list of tuples containing subquery Select objects, their associated clause, and nesting depth.
@@ -500,8 +500,11 @@ class Select(SetOperation, TokenizedSQL):
 
             for subquery_sql, clause, depth in subquery_sqls:
                 updated_catalog = self.catalog.copy()
-                if clause.upper() in ('FROM', 'JOIN'):
-                    visible_tables = next(from_scopes, [])
+                if 'FROM' in clause or 'JOIN' in clause:
+                    if 'TABLE_EXPRESSION' in clause and 'LATERAL' not in clause:
+                        visible_tables = []
+                    else:
+                        visible_tables = next(from_scopes, [])
                 else:
                     visible_tables = self.referenced_tables
 

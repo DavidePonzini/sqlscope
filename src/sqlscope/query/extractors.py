@@ -97,12 +97,6 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
 
         return first_token[0] is DML and first_token[1].upper() == 'SELECT'
 
-    def _inner_text_once(p: Parenthesis) -> str:
-        v = p.value.strip()
-        if v.startswith('(') and v.endswith(')'):
-            v = v[1:-1].strip()
-        return v
-
     def _walk(tokenlist: TokenList, current_clause: str | None = None, depth: int = 0) -> None:
         tokens = getattr(tokenlist, 'tokens', [])
         for tok in tokens:
@@ -116,16 +110,19 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
                 current_clause = 'ALL/ANY'
             elif tok.ttype is sqlparse.tokens.Comparison:
                 current_clause = 'COMPARISON'
+            elif current_clause and ('FROM' in current_clause or 'JOIN' in current_clause):
+                if isinstance(tok, sqlparse.sql.Parenthesis):
+                    current_clause = f'{current_clause} - TABLE_EXPRESSION'
 
             if tok.is_group:
                 # Detect subquery in parentheses
                 if isinstance(tok, Parenthesis) and _has_select_inside(tok):
-                    inner = _inner_text_once(tok)
+                    inner = TokenList(tok.tokens[1:-1])
                     subq_depth = depth + 1
-                    results.append((inner, current_clause or 'UNKNOWN', subq_depth))
+                    results.append((inner.value, current_clause or 'UNKNOWN', subq_depth))
 
                     # Re-parse inner and continue walking deeper with incremented depth
-                    for inner_stmt in sqlparse.parse(inner):
+                    for inner_stmt in inner.tokens:
                         _walk(inner_stmt, current_clause=None, depth=subq_depth)
                 else:
                     # Normal group: keep same depth and clause context

@@ -211,10 +211,28 @@ def test_from_subquery_scope_is_left_to_right():
     '''
 
     query = Query(sql, catalog=catalog_db, search_path='miedema')
-    sq1, sq2 = [subquery for subquery, _, _ in query.main_query.subqueries]
+    sq1, sq2 = [subquery for subquery, _, _ in query.selects[0].subqueries]
+
+    assert {table.name for table in sq1.referenced_tables} == set()
+    assert {table.name for table in sq2.referenced_tables} == {'s'}
+
+@pytest.mark.xfail(reason="Not yet implemented")
+def test_from_subquery_scope_is_left_to_right_lateral():
+    catalog_db = load_catalog('datasets/catalogs/miedema.json')
+    sql = '''
+        SELECT *
+        FROM customer c,
+             LATERAL (SELECT c.cid AS cid1) sq1,
+             LATERAL (SELECT c.cid AS cid2, sq1.cid1 AS prev_id FROM store s) sq2,
+             transaction t
+    '''
+
+    query = Query(sql, catalog=catalog_db, search_path='miedema')
+    sq1, sq2 = [subquery for subquery, _, _ in query.selects[0].subqueries]
 
     assert {table.name for table in sq1.referenced_tables} == {'c'}
     assert {table.name for table in sq2.referenced_tables} == {'s', 'c', 'sq1'}
+
 
 def test_select_strip_filters_removes_filter_clauses():
     query = Select(

@@ -368,7 +368,7 @@ class Select(SetOperation, TokenizedSQL):
 
         stripped_sql = self.sql.replace(text, replacement)
 
-        return Select(stripped_sql, catalog=self.catalog, search_path=self.search_path, parent_query=self.parent_query)
+        return Select(stripped_sql, catalog=self.catalog, search_path=self.search_path, parent_query=self.parent_query, visible_parent_tables=self.visible_parent_tables)
 
     def strip_subqueries(self, replacement: str = 'NULL', *, min_depth: int = 0) -> 'Select':
         '''Returns the SQL query with all subqueries removed (replaced by a context-aware placeholder).'''

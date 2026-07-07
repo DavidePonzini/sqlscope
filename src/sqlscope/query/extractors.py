@@ -78,10 +78,25 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
     results: list[tuple[str, str, int]] = []
 
     def _has_select_inside(group: TokenList) -> bool:
-        for t in group.flatten():
-            if t.ttype is DML and t.normalized == 'SELECT':
-                return True
-        return False
+        import dav_tools
+        flattened = [
+            (t.ttype, t.value) for t in group.flatten()
+            if t.ttype not in (
+                sqlparse.tokens.Whitespace,
+                sqlparse.tokens.Newline,
+                sqlparse.tokens.Punctuation,
+                sqlparse.tokens.Comment
+            )
+        ]
+
+        dav_tools.messages.debug(f"Flattened tokens: {flattened}")
+
+        if not flattened:
+            return False
+        
+        first_token = flattened[0]
+
+        return first_token[0] is DML and first_token[1].upper() == 'SELECT'
 
     def _inner_text_once(p: Parenthesis) -> str:
         v = p.value.strip()

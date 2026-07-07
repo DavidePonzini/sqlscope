@@ -258,6 +258,18 @@ def test_select_strip_subqueries_respects_min_depth():
         '(SELECT user_id FROM orders WHERE amount > NULL)'
     )
 
+@pytest.mark.parametrize('sql, expected', [
+    ("SELECT a,b,c FROM table1 WHERE a > (SELECT MAX(a) FROM table2);", ['SELECT MAX(a) FROM table2']),
+    ("SELECT * FROM (SELECT id, name FROM users) AS sub WHERE id IN (SELECT user_id FROM orders);", ['SELECT id, name FROM users', 'SELECT user_id FROM orders']),
+    ("SELECT * FROM table;", []),
+    ("WITH cte AS (SELECT a FROM b) SELECT * FROM cte WHERE a > (SELECT AVG(a) FROM b);", ['SELECT AVG(a) FROM b']),
+    ("select nome, cognome from studenti where not (nome in (select nome from professori) and cognome in (select cognome from professori))", ['select nome from professori', 'select cognome from professori'])
+])
+def test_extract_subqueries(sql, expected):
+    query = Query(sql)
+    subqueries = [subquery.sql for subquery, _, _ in query.main_query.selects[0].subqueries]
+    assert [subquery.strip() for subquery in subqueries] == expected
+
 def test_natural_join_equalities_simple():
     catalog_db = load_catalog('datasets/catalogs/miedema.json')
     query = Query(

@@ -394,13 +394,13 @@ class Select(SetOperation, TokenizedSQL):
             pattern = rf'\(\s*{escaped}\s*\)'
 
             # Replace the parentheses and enclosed subquery entirely
-            stripped_sql, n = re.subn(pattern, repl, stripped_sql, count=1)
+            stripped_sql, n = re.subn(pattern, f'{repl} ', stripped_sql, count=1)
 
             # Fallback: if not found with parentheses, remove raw subquery text
             if n == 0:
                 stripped_sql = re.sub(escaped, repl, stripped_sql, count=1)
 
-        return Select(stripped_sql, catalog=self.catalog, search_path=self.search_path, parent_query=self.parent_query)
+        return Select(stripped_sql, catalog=self.catalog, search_path=self.search_path, parent_query=self.parent_query, visible_parent_tables=self.visible_parent_tables)
 
     def get_join_conditions(self) -> list[exp.Expression]:
         '''Returns a list of join conditions used in the main query.'''

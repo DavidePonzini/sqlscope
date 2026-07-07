@@ -255,7 +255,7 @@ def test_select_strip_subqueries_respects_min_depth():
 
     assert ' '.join(stripped.sql.split()) == (
         'SELECT * FROM users WHERE id IN '
-        '(SELECT user_id FROM orders WHERE amount > NULL)'
+        '(SELECT user_id FROM orders WHERE amount > NULL )'
     )
 
 @pytest.mark.parametrize('sql, expected', [

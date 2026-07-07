@@ -427,6 +427,13 @@ class Select(SetOperation, TokenizedSQL):
 
         return result
     
+    def get_left_tables(self, table_name: str) -> list[Table]:
+        '''Returns the tables to the left of the given table alias in FROM/JOIN order.'''
+        for idx, table in enumerate(self.referenced_tables):
+            if table.name == table_name:
+                return self.referenced_tables[:idx]
+        return []
+    
     def get_natural_join_equalities(self) -> dict[str, set[int]]:
         '''Returns a list of equivalent column pairs for natural joins, represented as a dictionary mapping column names to sets of table indices.'''
 

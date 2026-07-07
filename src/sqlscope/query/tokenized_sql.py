@@ -10,7 +10,10 @@ class TokenizedSQL:
     '''Base class for tokenizing SQL queries.'''
 
     def __init__(self, sql: str) -> None:
-        self.sql = sql
+        self.sql_original = sql
+        '''The full original SQL query string, before any modifications.'''
+
+        self.sql = extractors.sanitize_query_str(sql)
         '''The full SQL query string.'''
 
         # Lazy properties
@@ -26,6 +29,7 @@ class TokenizedSQL:
         else:
             self.all_statements = list(parsed_statements)
             self.parsed = parsed_statements[0]
+
 
     # region Properties
     @property

@@ -8,6 +8,8 @@ from sqlparse.tokens import DML, Keyword
 
 import copy
 
+from .. import util
+
 def extract_functions(tokens, current_clause: str = 'NONE') -> list[tuple[sqlparse.sql.Function, str]]:
     result: list[tuple[sqlparse.sql.Function, str]] = []
 
@@ -78,7 +80,6 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
     results: list[tuple[str, str, int]] = []
 
     def _has_select_inside(group: TokenList) -> bool:
-        import dav_tools
         flattened = [
             (t.ttype, t.value) for t in group.flatten()
             if t.ttype not in (
@@ -88,8 +89,6 @@ def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
                 sqlparse.tokens.Comment
             )
         ]
-
-        dav_tools.messages.debug(f"Flattened tokens: {flattened}")
 
         if not flattened:
             return False
@@ -169,3 +168,42 @@ def strip_filters(sql: str) -> str:
         return ''.join(parts)
 
     return _strip_tokenlist(sqlparse.parse(sql)[0])
+
+def sanitize_query_str(sql: str) -> str:
+    '''Sanitize a SQL query string so that sqlglot can parse it correctly in particular edge cases.'''
+
+    # Remove parentheses around tables in FROM/JOIN clauses, if they are not part of a subquery or function call
+    #   otherwise sqlglot will parse "FROM (table1 JOIN table2)" as a subquery instead of a join
+
+    results: list[str] = []
+    parsed = sqlparse.parse(sql)
+
+    def _walk(tokenlist: sqlparse.sql.TokenList, current_clause: str | None) -> None:
+        tokens = tokenlist.tokens
+
+        for tok in tokens:
+            if util.tokens.is_ws(tok):
+                results.append(tok.value)
+                continue
+
+            # Update clause context when we see a keyword
+            if tok.ttype is Keyword or tok.ttype is DML:
+                current_clause = tok.normalized.upper()
+
+            if tok.is_group:
+                if current_clause in ('FROM', 'JOIN'):
+                    # a parenthesis with no direct SELECT inside is likely a table expression, so we can remove the parentheses
+                    if isinstance(tok, Parenthesis) and not any(t.ttype is DML and t.normalized.upper() == 'SELECT' for t in tok.tokens):
+                        inner = tok.tokens[1:-1]  # Remove the outer parentheses
+                        _walk(TokenList(inner), current_clause=current_clause)
+                        continue
+                # Otherwise, just walk the group normally
+                _walk(tok, current_clause=current_clause)
+            else:
+                results.append(tok.value)
+
+    for stmt in parsed:
+        _walk(stmt, current_clause=None)
+
+    return ''.join(results)
+                

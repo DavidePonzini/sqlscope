@@ -169,6 +169,9 @@ def strip_filters(sql: str) -> str:
 def sanitize_query_str(sql: str) -> str:
     '''Sanitize a SQL query string so that sqlglot can parse it correctly in particular edge cases.'''
 
+    # Remove CR from CRLF line endings, since they are not handled well
+    sql = sql.replace('\r\n', '\n')
+
     # Remove parentheses around tables in FROM/JOIN clauses, if they are not part of a subquery or function call
     #   otherwise sqlglot will parse "FROM (table1 JOIN table2)" as a subquery instead of a join
 

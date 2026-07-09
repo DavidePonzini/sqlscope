@@ -1,5 +1,4 @@
 import pytest
-from sqlscope.query.typechecking import get_type
 from sqlscope import load_catalog
 from sqlscope.query import Query
 from sqlscope.query.typechecking import collect_errors, get_type

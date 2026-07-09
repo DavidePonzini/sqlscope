@@ -70,8 +70,8 @@ class Select(SetOperation, TokenizedSQL):
     def _add_tables_to_catalog(self, catalog: Catalog, tables: Iterable[Table]) -> None:
         '''Adds visible tables to a catalog for correlated subquery resolution.'''
         for table in tables:
-            if not catalog.has_table(schema_name=table.schema_name, table_name=table.name):
-                catalog[table.schema_name][table.name] = deepcopy(table)
+            if not catalog.has_table(search_path=table.schema_name, table_name=table.name):
+                catalog.get_schema(table.schema_name)[table.name] = deepcopy(table)
 
     def _resolve_from_expression(self, expr: exp.Expression, visible_tables: list[Table]) -> Table | None:
         '''Resolves a FROM/JOIN expression into the table it contributes to this query scope.'''
@@ -98,8 +98,8 @@ class Select(SetOperation, TokenizedSQL):
             table_name_in = util.ast.table.get_real_name(expr)
             table_name_out = util.ast.table.get_name(expr)
 
-            if self.catalog.has_table(schema_name=schema_name, table_name=table_name_in):
-                table_in = self.catalog[schema_name][table_name_in]
+            if self.catalog.has_table(search_path=schema_name, table_name=table_name_in):
+                table_in = self.catalog.get_table(schema_name, table_name_in)
                 table = deepcopy(table_in)
                 table.name = table_name_out
                 return table

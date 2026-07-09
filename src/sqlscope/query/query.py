@@ -106,7 +106,7 @@ class Query(TokenizedSQL):
             output.real_name = cte_name
             output.cte_idx = len(self.ctes) - 1
 
-            self.catalog[output.schema_name][cte_name] = output
+            self.catalog.get_schema(output.schema_name)[cte_name] = output
 
         main_query_sql = ''.join(str(token) for token in main_query_tokens).strip()
         self.main_query = create_set_operation_tree(main_query_sql, catalog=self.catalog, search_path=self.search_path)

@@ -1,64 +1,107 @@
 from .table import Table
 from .schema import Schema
+from .util import split_search_path
 
 from dataclasses import dataclass, field
 import json
 from typing import Self
 from copy import deepcopy
 
+
 @dataclass
 class Catalog:
     '''A database catalog, with schemas, tables, and columns.'''
 
     _schemas: dict[str, Schema] = field(default_factory=dict)
+    
+    def lookup_schema(self, search_path: str) -> Schema | None:
+        '''Gets the first existing schema from a possibly comma-separated search path.'''
 
-    def __getitem__(self, schema_name: str) -> Schema:
-        '''Gets a schema from the catalog, creating it if it does not exist.'''
+        for schema_name in split_search_path(search_path):
+            if schema_name in self._schemas:
+                return self._schemas[schema_name]
+        return None
 
-        if schema_name not in self._schemas:
-            self._schemas[schema_name] = Schema(schema_name)
+    def get_schema(self, search_path: str) -> Schema:
+        '''Gets a schema from the catalog, creating the first schema in the search path if needed.'''
+
+        schema = self.lookup_schema(search_path)
+        if schema:
+            return schema
+
+        # schema not found, create the first schema in the search path
+        schema_name = split_search_path(search_path)[0]
+        self._schemas[schema_name] = Schema(schema_name)
         return self._schemas[schema_name]
     
-    def __setitem__(self, schema_name: str, schema: Schema) -> Schema:
+    def get_table(self, search_path: str, table_name: str) -> Table:
+        '''Gets a table from the catalog, creating the schema and table if needed.'''
+
+
+        for schema in split_search_path(search_path):
+            if schema in self._schemas and self._schemas[schema].has_table(table_name):
+                return self._schemas[schema][table_name]
+            
+        # table not found, create the first schema in the search path and the table
+        schema_name = split_search_path(search_path)[0]
+        schema = self.get_schema(schema_name)
+        schema[table_name] = Table(table_name, schema_name)
+
+        return schema[table_name]
+
+    def __setitem__(self, search_path: str, schema: Schema) -> Schema:
         '''Sets a schema in the catalog, replacing any existing schema with the same name.'''
         
+        # in case multiple schemas are specified, only use the first one
+        schema_name = split_search_path(search_path)[0]
+        
         self._schemas[schema_name] = schema
+
         return schema
     
-    def has_schema(self, schema_name: str) -> bool:
-        '''Checks if a schema exists in the catalog.'''
-        
-        return schema_name in self._schemas
-    
-    def copy_table(self, schema_name: str, table_name: str, table: Table) -> Table:
-        '''Copies a table into the catalog, creating the schema if it does not exist.'''
+    def copy_table(self, search_path: str, table_name: str, table: Table) -> Table:
+        '''Copies a table into the first schema in the search path, creating it if needed.'''
         
         new_table = deepcopy(table)
-        self[schema_name][table_name] = new_table
+        schema_name = split_search_path(search_path)[0]
+        
+        self.get_schema(schema_name)[table_name] = new_table
         
         return new_table
 
-    def has_table(self, schema_name: str, table_name: str) -> bool:
+    def lookup_table(self, search_path: str, table_name: str) -> Table | None:
+        '''Gets the first matching table from a possibly comma-separated schema search path.'''
+
+        for schema_name in split_search_path(search_path):
+            schema = self._schemas.get(schema_name)
+            if schema and schema.has_table(table_name):
+                return schema[table_name]
+        return None
+
+    def has_table(self, search_path: str, table_name: str) -> bool:
         '''
-            Checks if a table exists in the specified schema in the catalog.
+            Checks if a table exists in any schema from the specified search path.
 
-            Returns False if the schema or table do not exist.
+            Returns False if none of the schemas contain the table.
         '''
 
-        if not self.has_schema(schema_name):
-            return False
-        return self.__getitem__(schema_name).has_table(table_name)
+        return self.lookup_table(search_path, table_name) is not None
 
-    def add_column(self, schema_name: str, table_name: str, column_name: str,
+    def add_column(self, search_path: str, table_name: str, column_name: str,
                    column_type: str, numeric_precision: int | None = None, numeric_scale: int | None = None,
                    is_nullable: bool = True,
                    fk_schema: str | None = None, fk_table: str | None = None, fk_column: str | None = None) -> None:
         '''Adds a column to the catalog, creating the schema and table if they do not exist.'''
 
-        self[schema_name][table_name].add_column(name=column_name,
-                                                 column_type=column_type, numeric_precision=numeric_precision, numeric_scale=numeric_scale,
-                                                 is_nullable=is_nullable,
-                                                 fk_schema=fk_schema, fk_table=fk_table, fk_column=fk_column)
+        target_table = self.lookup_table(search_path, table_name)
+        if target_table is None:
+            schema_name = split_search_path(search_path)[0]
+            target_table = self.get_table(schema_name, table_name)
+
+        target_table.add_column(name=column_name,
+                                column_type=column_type, numeric_precision=numeric_precision, numeric_scale=numeric_scale,
+                                is_nullable=is_nullable,
+                                fk_schema=fk_schema, fk_table=fk_table, fk_column=fk_column)
         
     @property
     def schema_names(self) -> set[str]:

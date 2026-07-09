@@ -79,7 +79,7 @@ def test_select_star():
 
     query = Query(sql, catalog=catalog_db, search_path=db)
 
-    assert len(query.main_query.output.columns) == len(query.catalog[db][table].columns)
+    assert len(query.main_query.output.columns) == len(query.catalog.get_table(db, table).columns)
 
 def test_select_multiple_stars():
     db = 'miedema'
@@ -90,7 +90,7 @@ def test_select_multiple_stars():
 
     query = Query(sql, catalog=catalog_db, search_path=db)
 
-    assert len(query.main_query.output.columns) == len(query.catalog[db][table].columns) * 2
+    assert len(query.main_query.output.columns) == len(query.catalog.get_table(db, table).columns) * 2
 
 def test_select_star_on_a_cte():
     db = 'miedema'
@@ -114,7 +114,7 @@ def test_select_star_on_a_table():
 
     query = Query(sql, catalog=catalog_db, search_path=db)
 
-    assert len(query.main_query.output.columns) == len(catalog_db[db][table].columns) + 1  # sid + all columns from store
+    assert len(query.main_query.output.columns) == len(catalog_db.get_table(db, table).columns) + 1  # sid + all columns from store
 
 # region set_operations
 

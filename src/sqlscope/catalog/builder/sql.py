@@ -170,7 +170,7 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
             column_type, numeric_precision, numeric_scale = _extract_datatype(column_exp)
 
             # Add column to catalog
-            catalog[schema_name][table_name].add_column(
+            catalog.get_table(schema_name, table_name).add_column(
                 name=column_name,
                 column_type=column_type,
                 real_name=column_name,
@@ -207,7 +207,7 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
         # Add Primary Key constraint to catalog
         # NOTE: needs to be perfomed after all columns have been added, since PKs can be defined at both column and table level
         if len(pk_col_names) > 0:
-            catalog[schema_name][table_name].add_unique_constraint(
+            catalog.get_table(schema_name, table_name).add_unique_constraint(
                 columns=pk_col_names,
                 constraint_type=ConstraintType.PRIMARY_KEY
             )
@@ -215,7 +215,7 @@ def build_catalog_from_sql(sql_string: str, search_path: str = 'public') -> Cata
         # Add Unique constraints to catalog
         # NOTE: needs to be perfomed after all columns have been added, since Unique constraints can be defined at both column and table level
         for unique_col_name_set in unique_col_names:
-            catalog[schema_name][table_name].add_unique_constraint(
+            catalog.get_table(schema_name, table_name).add_unique_constraint(
                 columns=unique_col_name_set,
                 constraint_type=ConstraintType.UNIQUE
             )

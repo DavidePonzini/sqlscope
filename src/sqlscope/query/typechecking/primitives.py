@@ -76,5 +76,5 @@ def _(expression: exp.Column, catalog: Catalog, search_path: str) -> ResultType:
         schema = get_schema(expression) or search_path
         table = get_real_name(expression)
 
-        nullable = catalog[schema][table][expression.name].is_nullable
+        nullable = catalog.get_table(schema, table)[expression.name].is_nullable
         return AtomicType(data_type=expression.type.this, constant=False, nullable=nullable)

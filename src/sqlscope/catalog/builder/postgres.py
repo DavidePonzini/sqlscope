@@ -58,7 +58,7 @@ def build_catalog(columns_info: list[CatalogColumnInfo], unique_constraints_info
     
     for column in columns_info:
         result.add_column(
-            schema_name=column.schema_name,
+            search_path=column.schema_name,
             table_name=column.table_name,
             column_name=column.column_name,
             column_type=column.column_type,

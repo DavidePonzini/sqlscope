@@ -73,6 +73,19 @@ class Catalog:
         for schema in self._schemas.values():
             result.update(schema.table_names)
         return result
+    
+    def merge(self, other: 'Catalog') -> 'Catalog':
+        '''Merges another catalog into this one, overwriting any existing schemas, tables, or columns with the same names.'''
+
+        result = self.copy()
+
+        for schema_name, schema in other._schemas.items():
+            if schema_name not in result._schemas:
+                result._schemas[schema_name] = deepcopy(schema)
+            else:
+                result._schemas[schema_name].merge(schema)
+
+        return result
 
     def copy(self) -> Self:
         '''Creates a deep copy of the catalog.'''
@@ -88,7 +101,7 @@ class Catalog:
 
         return result
 
-    
+    # region Serialization
     def to_dict(self) -> dict:
         '''Converts the Catalog to a dictionary.'''
         return {
@@ -105,7 +118,7 @@ class Catalog:
             cat._schemas[sch.name] = sch
         return cat
 
-    # String-based JSON (handy for DB/blob storage)
+    #  String-based JSON (handy for DB/blob storage)
     def to_json(self, *, indent: int | None = 2) -> str:
         '''Converts the Catalog to a JSON string.'''
         return json.dumps(self.to_dict(), indent=indent)
@@ -132,8 +145,9 @@ class Catalog:
                 del result[sch_name]
 
         return result
+    # endregion
 
-    # Convenience file helpers
+    # region File Helpers
     def save_json(self, path: str, *, indent: int | None = 2) -> None:
         '''Saves the Catalog to a JSON file.'''
         with open(path, 'w', encoding='utf-8') as f:
@@ -145,3 +159,4 @@ class Catalog:
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return cls.from_dict(data)
+    # endregion

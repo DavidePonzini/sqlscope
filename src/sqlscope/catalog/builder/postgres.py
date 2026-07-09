@@ -78,31 +78,21 @@ def build_catalog(columns_info: list[CatalogColumnInfo], unique_constraints_info
 
     return result
 
-
-def build_catalog_from_postgres(sql_string: str, *, hostname: str, port: int, user: str, password: str, schema: str | None = None, create_temp_schema: bool = False) -> Catalog:
-    '''Builds a catalog by executing the provided SQL string in a temporary PostgreSQL database.'''
-    if sql_string.strip() == '':
-        return Catalog()
+def build_catalog_from_postgres_schema(
+        schema: str,
+        *,
+        hostname: str = 'localhost',
+        port: int = 5432,
+        user: str = 'postgres',
+        password: str = 'password'
+    ) -> Catalog:
+    '''Builds a catalog from an existing PostgreSQL schema.'''
 
     conn = psycopg2.connect(host=hostname, port=port, user=user, password=password)
     cur = conn.cursor()
-    
-    # Use a temporary schema with a fixed name
-    if create_temp_schema:
-        if schema is None:
-            schema_name = f'sql_error_categorizer_{time.time_ns()}'
-        else:
-            schema_name = schema
-        cur.execute(f'CREATE schema {schema_name};')
-        cur.execute(f'SET search_path TO {schema_name};')
-    else:
-        schema_name = '%' if schema is None else schema
-    
-    # Create the tables
-    cur.execute(sql_string)
 
     # Fetch the catalog information
-    cur.execute(COLUMNS(schema_name))
+    cur.execute(COLUMNS(schema))
     columns_info = cur.fetchall()
 
     columns_data = [
@@ -122,7 +112,7 @@ def build_catalog_from_postgres(sql_string: str, *, hostname: str, port: int, us
     ]
 
     # Fetch unique constraints (including primary keys)
-    cur.execute(UNIQUE_COLUMNS(schema_name))
+    cur.execute(UNIQUE_COLUMNS(schema))
     unique_constraints_info = cur.fetchall()
 
     unique_constraints_data = [
@@ -135,12 +125,47 @@ def build_catalog_from_postgres(sql_string: str, *, hostname: str, port: int, us
         for row in unique_constraints_info
     ]
 
+    return build_catalog(columns_data, unique_constraints_data)
+
+def build_catalog_from_postgres(
+        sql_string: str | None,
+        *,
+        hostname: str = 'localhost',
+        port: int = 5432,
+        user: str = 'postgres',
+        password: str = 'password',
+        schema: str | None = None,
+        create_temp_schema: bool = False
+    ) -> Catalog:
+    '''Builds a catalog by executing the provided SQL string in a temporary PostgreSQL database.'''
+    if sql_string is None or sql_string.strip() == '':
+        return Catalog()
+
+    conn = psycopg2.connect(host=hostname, port=port, user=user, password=password)
+    cur = conn.cursor()
+    
+    # Use a temporary schema with a fixed name
+    if create_temp_schema:
+        if schema is None:
+            schema_name = f'sql_error_categorizer_{time.time_ns()}'
+        else:
+            schema_name = schema
+        cur.execute(f'CREATE schema {schema_name};')
+        cur.execute(f'SET search_path TO {schema_name};')
+    else:
+        schema_name = '%' if schema is None else schema
+    
+    # Create the tables
+    cur.execute(sql_string)
+
+    result = build_catalog_from_postgres_schema(schema_name, hostname=hostname, port=port, user=user, password=password)
+
     # Clean up
     if create_temp_schema:
         cur.execute(f'DROP schema {schema_name} CASCADE;')
     conn.rollback()     # no need to save anything
 
-    return build_catalog(columns_data, unique_constraints_data)
+    return result
 # endregion
 
 # region SQL Queries

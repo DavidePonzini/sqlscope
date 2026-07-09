@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from .constraint import Constraint, ConstraintColumn, ConstraintType
 from .column import Column
 
@@ -66,6 +68,27 @@ class Table:
         self.columns.append(new_col)
         return new_col
 
+    def merge(self, other: 'Table') -> 'Table':
+        '''Merges another table into this one, overwriting any existing columns with the same names.'''
+        result = deepcopy(self)
+
+        for other_col in other.columns:
+            if not result.has_column(other_col.name):
+                result.columns.append(deepcopy(other_col))
+            else:
+                # Overwrite existing column with the same name
+                for idx, col in enumerate(result.columns):
+                    if col.name == other_col.name:
+                        result.columns[idx] = deepcopy(other_col)
+                        break
+
+        # Merge unique constraints
+        for other_uc in other.unique_constraints:
+            if other_uc not in result.unique_constraints:
+                result.unique_constraints.append(deepcopy(other_uc))
+        
+        return result
+
     def __repr__(self, level: int = 0) -> str:
         indent = '  ' * level
 
@@ -89,6 +112,7 @@ class Table:
                 f'columns=[{columns}], ' \
                 f'unique_constraints=[{unique_constraints_str}])'
 
+    # region Serialization
     def to_dict(self) -> dict:
         '''Converts the Table to a dictionary.'''
         return {
@@ -110,4 +134,4 @@ class Table:
             col = Column.from_dict(col_data)
             table.columns.append(col)
         return table
-    
+    # endregion

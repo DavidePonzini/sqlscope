@@ -38,11 +38,25 @@ class Schema:
         '''Returns all table names in the schema.'''
         return set(self._tables.keys())
 
+    def merge(self, other: 'Schema') -> 'Schema':
+        '''Merges another schema into this one, overwriting any existing tables with the same names.'''
+
+        result = deepcopy(self)
+
+        for table_name, table in other._tables.items():
+            if table_name not in result._tables:
+                result._tables[table_name] = deepcopy(table)
+            else:
+                result._tables[table_name].merge(table)
+
+        return result
+
     def __repr__(self, level: int = 0) -> str:
         indent = '  ' * level
         tables = '\n'.join([table.__repr__(level + 1) for table in self._tables.values()])
         return f'{indent}Schema(name=\'{self.name}\', tables=[\n{tables}\n{indent}])'
 
+    # region Serialization
     def to_dict(self) -> dict:
         '''Converts the Schema to a dictionary.'''
         return {
@@ -58,3 +72,4 @@ class Schema:
             tbl = Table.from_dict(tbl_data, schema_name=schema.name)
             schema._tables[tbl.name] = tbl
         return schema
+    # endregion

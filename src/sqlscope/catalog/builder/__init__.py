@@ -1,5 +1,5 @@
 from ..catalog import Catalog
-from .postgres import build_catalog, build_catalog_from_postgres, CatalogColumnInfo, CatalogUniqueConstraintInfo
+from .postgres import build_catalog, build_catalog_from_postgres, build_catalog_from_postgres_schema, CatalogColumnInfo, CatalogUniqueConstraintInfo
 from .sql import build_catalog_from_sql
 
 def load_catalog(path: str) -> Catalog:

@@ -74,7 +74,7 @@ def build_catalog(columns_info: list[CatalogColumnInfo], unique_constraints_info
         columns = set(constraint.columns.strip('{}').split(','))  # Postgres returns {col1,col2,...}
         constraint_type = ConstraintType.PRIMARY_KEY if constraint.constraint_type == 'PRIMARY KEY' else ConstraintType.UNIQUE
 
-        result[constraint.schema_name][constraint.table_name].add_unique_constraint(columns, constraint_type=constraint_type)
+        result.get_table(constraint.schema_name, constraint.table_name).add_unique_constraint(columns, constraint_type=constraint_type)
 
     return result
 

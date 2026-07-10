@@ -399,12 +399,14 @@ class Select(SetOperation, TokenizedSQL):
             escaped = re.escape(subquery_sql)
             pattern = rf'\(\s*{escaped}\s*\)'
 
+            # NOTE: replacements are surrounded by spaces to avoid accidental concatenation with adjacent tokens.
+
             # Replace the parentheses and enclosed subquery entirely
-            stripped_sql, n = re.subn(pattern, f'{repl} ', stripped_sql, count=1)
+            stripped_sql, n = re.subn(pattern, f' {repl} ', stripped_sql, count=1)
 
             # Fallback: if not found with parentheses, remove raw subquery text
             if n == 0:
-                stripped_sql = re.sub(escaped, repl, stripped_sql, count=1)
+                stripped_sql = re.sub(escaped, f' {repl} ', stripped_sql, count=1)
 
         return Select(stripped_sql, catalog=self.catalog, search_path=self.search_path, parent_query=self.parent_query, visible_parent_tables=self.visible_parent_tables)
 

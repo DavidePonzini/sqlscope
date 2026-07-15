@@ -160,7 +160,7 @@ class Select(SetOperation, TokenizedSQL):
 
         return result
 
-    def _get_table_idx_for_column(self, column: exp.Column) -> int | None:
+    def get_table_idx_for_column(self, column: exp.Column) -> int | None:
         '''Returns the index of the table that contains the given column.'''
 
         table_name = util.ast.column.get_table(column)
@@ -222,7 +222,7 @@ class Select(SetOperation, TokenizedSQL):
                 if isinstance(column.this, exp.Column):
                     # If the aliased expression is a column, resolve its table index
                     real_name = util.ast.column.get_real_name(column.this)
-                    table_idx = self._get_table_idx_for_column(column.this)
+                    table_idx = self.get_table_idx_for_column(column.this)
                 elif isinstance(column.this, exp.Subquery):
                     # If the aliased expression is a subquery, resolve its output columns
                     subq = Select(util.sql.remove_parentheses(column.this.sql()), catalog=self.catalog, search_path=self.search_path)
@@ -269,7 +269,7 @@ class Select(SetOperation, TokenizedSQL):
                 '''Add a column reference (SELECT column or table.column).'''
                 col_name = column.alias_or_name
                 name = col_name if column.this.quoted else col_name.lower()
-                table_idx = self._get_table_idx_for_column(column)
+                table_idx = self.get_table_idx_for_column(column)
                 res_type = get_type(column, catalog=self.catalog, search_path=self.search_path)
                 
                 result.add_column(
@@ -356,7 +356,7 @@ class Select(SetOperation, TokenizedSQL):
             if table.name == table_name:
                 return idx
         return None
-
+    
     def strip_filters(self) -> 'Select':
         '''Returns the SQL query with all FILTER(...) clauses removed.'''
         stripped_sql = extractors.strip_filters(self.sql)
@@ -597,7 +597,7 @@ class Select(SetOperation, TokenizedSQL):
                         col_name = util.ast.column.get_real_name(col)
 
                         # Resolve which table this column belongs to
-                        table_idx = self._get_table_idx_for_column(col) or 0    # default to first table if not found, for incorrect queries that group by a column not in any table
+                        table_idx = self.get_table_idx_for_column(col) or 0    # default to first table if not found, for incorrect queries that group by a column not in any table
                         
                         group_by_cols.add(ConstraintColumn(col_name, table_idx))
                 # Add GROUP BY constraint
@@ -655,7 +655,7 @@ class Select(SetOperation, TokenizedSQL):
                 if equalities:
                     def resolve(col):
                         col_name = util.ast.column.get_real_name(col)
-                        table_idx = self._get_table_idx_for_column(col)
+                        table_idx = self.get_table_idx_for_column(col)
                         
                         return ConstraintColumn(col_name, table_idx)
                     

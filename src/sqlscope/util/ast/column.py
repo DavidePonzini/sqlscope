@@ -29,23 +29,31 @@ def get_name(column: exp.Column | exp.Alias) -> str:
 
     return get_real_name(column)
 
-def get_table(column: exp.Column) -> str | None:
+def get_table(column: exp.Column | exp.Alias) -> str | None:
     '''Returns the table name or alias for the column, in lowercase if unquoted.'''
     
-    if column.args.get('table'):
-        quoted = column.args['table'].quoted
-        name = column.table
+    col = column.find(exp.Column)
+    if col is None:
+        return None
+
+    if col.args.get('table'):
+        quoted = col.args['table'].quoted
+        name = col.table
 
         return name if quoted else name.lower()
     
     return None
 
-def get_schema(column: exp.Column) -> str | None:
+def get_schema(column: exp.Column | exp.Alias) -> str | None:
     '''Returns the schema name for the column, in lowercase if unquoted.'''
     
-    if column.args.get('db'):
-        quoted = column.args['db'].quoted
-        name = column.db
+    col = column.find(exp.Column)
+    if col is None:
+        return None
+
+    if col.args.get('db'):
+        quoted = col.args['db'].quoted
+        name = col.db
 
         return name if quoted else name.lower()
     

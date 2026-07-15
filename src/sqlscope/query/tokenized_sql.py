@@ -13,8 +13,12 @@ class TokenizedSQL:
         self.sql_original = sql
         '''The full original SQL query string, before any modifications.'''
 
-        self.sql = extractors.sanitize_query_str(sql)
-        '''The full SQL query string.'''
+        sanitized_sql = sql
+        sanitized_sql = extractors.sanitize_query_str(sanitized_sql)
+        sanitized_sql = extractors.strip_comments(sanitized_sql)
+        
+        self.sql = sanitized_sql
+        '''The full SQL query string, sanitized and with comments removed.'''
 
         # Lazy properties
         self._tokens = None

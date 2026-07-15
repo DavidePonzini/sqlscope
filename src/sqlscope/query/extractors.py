@@ -67,7 +67,6 @@ def extract_subqueries_ast(ast: E.Expression | None) -> list[E.Subquery]:
 
     return list(ast.find_all(E.Subquery))
 
-
 def extract_subqueries_tokens(sql: str) -> list[tuple[str, str, int]]:
     """
     Recursively extract all subqueries (including nested ones) from a SQL string.
@@ -206,4 +205,19 @@ def sanitize_query_str(sql: str) -> str:
         _walk(stmt, current_clause=None)
 
     return ''.join(results)
-                
+
+def strip_comments(sql: str) -> str:
+    """
+    Removes comments from the SQL query.
+
+    This function uses sqlparse to tokenize the SQL and remove comments.
+    """
+    parsed = sqlparse.parse(sql)
+    result_parts: list[str] = []
+
+    for stmt in parsed:
+        for token in stmt.flatten():
+            if token.ttype not in (sqlparse.tokens.Comment, sqlparse.tokens.Comment.Multiline, sqlparse.tokens.Comment.Single):
+                result_parts.append(token.value)
+
+    return ''.join(result_parts)

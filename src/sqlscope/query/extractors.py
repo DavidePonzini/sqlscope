@@ -168,43 +168,72 @@ def strip_filters(sql: str) -> str:
 def sanitize_query_str(sql: str) -> str:
     '''Sanitize a SQL query string so that sqlglot can parse it correctly in particular edge cases.'''
 
-    # Remove CR from CRLF line endings, since they are not handled well
-    sql = sql.replace('\r\n', '\n')
+    def remove_crlf(sql: str) -> str:
+        '''Remove CR from CRLF line endings, since they are not handled well.'''
+        return sql.replace('\r\n', '\n')
 
-    # Remove parentheses around tables in FROM/JOIN clauses, if they are not part of a subquery or function call
-    #   otherwise sqlglot will parse "FROM (table1 JOIN table2)" as a subquery instead of a join
+    def remove_parentheses_from_table_expressions(sql: str) -> str:
+        """
+        Removes parentheses around table expressions in FROM and JOIN clauses.
 
-    results: list[str] = []
-    parsed = sqlparse.parse(sql)
+        This is necessary because sqlglot will parse "FROM (table1 JOIN table2)" as a subquery instead of a join.
+        """
 
-    def _walk(tokenlist: sqlparse.sql.TokenList, current_clause: str | None) -> None:
-        tokens = tokenlist.tokens
+        results: list[str] = []
+        parsed = sqlparse.parse(sql)
 
-        for tok in tokens:
-            if util.tokens.is_ws(tok):
-                results.append(tok.value)
-                continue
+        def _walk(tokenlist: sqlparse.sql.TokenList, current_clause: str | None) -> None:
+            tokens = tokenlist.tokens
 
-            # Update clause context when we see a keyword
-            if tok.ttype is Keyword or tok.ttype is DML:
-                current_clause = tok.normalized.upper()
+            for tok in tokens:
+                if util.tokens.is_ws(tok):
+                    results.append(tok.value)
+                    continue
 
-            if tok.is_group:
-                if current_clause in ('FROM', 'JOIN'):
-                    # a parenthesis with no direct SELECT inside is likely a table expression, so we can remove the parentheses
-                    if isinstance(tok, Parenthesis) and not any(t.ttype is DML and t.normalized.upper() == 'SELECT' for t in tok.tokens):
-                        inner = tok.tokens[1:-1]  # Remove the outer parentheses
-                        _walk(TokenList(inner), current_clause=current_clause)
-                        continue
-                # Otherwise, just walk the group normally
-                _walk(tok, current_clause=current_clause)
+                # Update clause context when we see a keyword
+                if tok.ttype is Keyword or tok.ttype is DML:
+                    current_clause = tok.normalized.upper()
+
+                if tok.is_group:
+                    if current_clause in ('FROM', 'JOIN'):
+                        # a parenthesis with no direct SELECT inside is likely a table expression, so we can remove the parentheses
+                        if isinstance(tok, Parenthesis) and not any(t.ttype is DML and t.normalized.upper() == 'SELECT' for t in tok.tokens):
+                            inner = tok.tokens[1:-1]  # Remove the outer parentheses
+                            _walk(TokenList(inner), current_clause=current_clause)
+                            continue
+                    # Otherwise, just walk the group normally
+                    _walk(tok, current_clause=current_clause)
+                else:
+                    results.append(tok.value)
+
+        for stmt in parsed:
+            _walk(stmt, current_clause=None)
+
+        return ''.join(results)
+    
+    def add_spaces_before_parentheses(sql: str) -> str:
+        """
+        Adds a space before opening parentheses in function calls.
+
+        This is necessary because sqlglot will parse "exists(select ...)" as a function call instead of a subquery, which can lead to incorrect parsing.
+        """
+
+        result = ''
+
+        parsed = sqlparse.parse(sql)[0]
+        for stmt in parsed.flatten():
+            if stmt.ttype is sqlparse.tokens.Name and stmt.value.upper() in ('EXISTS', 'ANY', 'ALL'):
+                result += stmt.value + ' '
             else:
-                results.append(tok.value)
+                result += stmt.value
 
-    for stmt in parsed:
-        _walk(stmt, current_clause=None)
+        return result
 
-    return ''.join(results)
+    sql = remove_crlf(sql)
+    sql = remove_parentheses_from_table_expressions(sql)
+    sql = add_spaces_before_parentheses(sql)
+
+    return sql
 
 def strip_comments(sql: str) -> str:
     """

@@ -7,6 +7,7 @@ python-dateutil
 
 # Dependencies for development
 ipython
+dav_tools
 
 # Dependencies for building
 build

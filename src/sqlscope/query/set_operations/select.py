@@ -160,22 +160,6 @@ class Select(SetOperation, TokenizedSQL):
 
         return result
 
-    def get_table_idx_for_column(self, column: exp.Column) -> int | None:
-        '''Returns the index of the table that contains the given column.'''
-
-        table_name = util.ast.column.get_table(column)
-        col_name = column.alias_or_name
-        name = col_name if column.this.quoted else col_name.lower()
-
-        # Resolve which table this column belongs to
-        if table_name:
-            table_idx = next((i for i, t in enumerate(self.referenced_tables) if t.name == table_name), None)
-        else:
-            table_idx = next((i for i, t in enumerate(self.referenced_tables)
-                            if any(c.name == name for c in t.columns)), None)
-        
-        return table_idx
-
     def _get_output_table(self) -> Table:
         '''
         Returns a Table object representing the output of this SELECT query.
@@ -350,6 +334,22 @@ class Select(SetOperation, TokenizedSQL):
         return self._output_table
     # endregion
 
+    def get_table_idx_for_column(self, column: exp.Column) -> int | None:
+        '''Returns the index of the table that contains the given column.'''
+
+        table_name = util.ast.column.get_table(column)
+        col_name = column.alias_or_name
+        name = col_name if column.this.quoted else col_name.lower()
+
+        # Resolve which table this column belongs to
+        if table_name:
+            table_idx = next((i for i, t in enumerate(self.referenced_tables) if t.name == table_name), None)
+        else:
+            table_idx = next((i for i, t in enumerate(self.referenced_tables)
+                            if any(c.name == name for c in t.columns)), None)
+        
+        return table_idx
+
     def get_table_idx(self, table_name: str) -> int | None:
         '''Returns the index of the table with the given name in the referenced tables.'''
         for idx, table in enumerate(self.referenced_tables):
@@ -357,6 +357,7 @@ class Select(SetOperation, TokenizedSQL):
                 return idx
         return None
     
+    # region Stripping
     def strip_filters(self) -> 'Select':
         '''Returns the SQL query with all FILTER(...) clauses removed.'''
         stripped_sql = extractors.strip_filters(self.sql)
@@ -409,7 +410,9 @@ class Select(SetOperation, TokenizedSQL):
                 stripped_sql = re.sub(escaped, f' {repl} ', stripped_sql, count=1)
 
         return Select(stripped_sql, catalog=self.catalog, search_path=self.search_path, parent_query=self.parent_query, visible_parent_tables=self.visible_parent_tables)
+    # endregion
 
+    # region Joins
     def get_join_conditions(self) -> list[exp.Expression]:
         '''Returns a list of join conditions used in the main query.'''
         if not self.ast:
@@ -488,7 +491,7 @@ class Select(SetOperation, TokenizedSQL):
             left_tables.append(right_table)
             
         return result
-
+    # endregion
 
     # region Properties
     

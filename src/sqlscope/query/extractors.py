@@ -220,12 +220,13 @@ def sanitize_query_str(sql: str) -> str:
 
         result = ''
 
-        parsed = sqlparse.parse(sql)[0]
-        for stmt in parsed.flatten():
-            if stmt.ttype is sqlparse.tokens.Name and stmt.value.upper() in ('EXISTS', 'ANY', 'ALL'):
-                result += stmt.value + ' '
-            else:
-                result += stmt.value
+        parsed = sqlparse.parse(sql)
+        for stmt in parsed:
+            for token in stmt.flatten():
+                if token.ttype is sqlparse.tokens.Name and token.value.upper() in ('EXISTS', 'ANY', 'ALL'):
+                    result += token.value + ' '
+                else:
+                    result += token.value
 
         return result
 

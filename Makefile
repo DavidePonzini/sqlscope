@@ -3,7 +3,7 @@
 # Author: Davide Ponzini
 
 NAME=sqlscope
-VENV=./venv
+VENV=.venv
 REQUIREMENTS=requirements.txt
 
 ifeq ($(OS),Windows_NT)

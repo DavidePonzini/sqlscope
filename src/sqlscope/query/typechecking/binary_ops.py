@@ -3,7 +3,7 @@ from ...catalog import Catalog
 from sqlglot import exp
 from .types import ResultType, AtomicType
 from sqlglot.expressions import DataType
-from .util import is_number, to_number, to_date, error_message
+from .util import is_number, to_number, to_date, error_message, is_string
 
 @get_type.register
 def _(expression: exp.Binary, catalog: Catalog, search_path: str) -> ResultType:
@@ -55,3 +55,16 @@ def typecheck_comparisons(left_type: ResultType, right_type: ResultType, express
 
     # Always returns boolean
     return AtomicType(data_type=expression.type.this, nullable=False, constant=True, messages=old_messages)
+
+# Handle string concatenation typechecking ('str1' || 'str2')
+@get_type.register
+def _(expression: exp.DPipe, catalog: Catalog, search_path: str) -> ResultType:
+    left_type = get_type(expression.this, catalog, search_path)
+    right_type = get_type(expression.expression, catalog, search_path)
+
+    old_messages = left_type.messages + right_type.messages
+
+    if not is_string(left_type.data_type) or not is_string(right_type.data_type):
+        old_messages.append(error_message(expression, left_type.data_type_str + " || " + right_type.data_type_str, "string"))
+
+    return AtomicType(data_type=expression.type.this, nullable=left_type.nullable or right_type.nullable, constant=left_type.constant and right_type.constant, messages=old_messages)

@@ -22,6 +22,7 @@ class Select(SetOperation, TokenizedSQL):
                  catalog: Catalog = Catalog(),
                  search_path: str = 'public',
                  parent_query: 'Select | None' = None,
+                 subquery_clause: str | None = None,
                  visible_parent_tables: list[Table] | None = None,
         ) -> None:
         '''
@@ -45,6 +46,7 @@ class Select(SetOperation, TokenizedSQL):
         '''Tables from outer scopes that are visible for correlated references in this query.'''
         
         self.search_path = search_path
+        self.subquery_clause = subquery_clause
 
         # Initialize cached properties
         self._subqueries: list[tuple[Select, str, int]] | None = None
@@ -513,7 +515,18 @@ class Select(SetOperation, TokenizedSQL):
                 updated_catalog = self.catalog.copy()
                 if 'FROM' in clause or 'JOIN' in clause:
                     if 'TABLE_EXPRESSION' in clause and 'LATERAL' not in clause:
+                        # go up the parent chain until we find a query that is not a FROM/JOIN subquery, and use its visible tables
+                        # if we reach the top without finding such a query, use an empty list
                         visible_tables = []
+
+                        aux = self
+                        while aux is not None and aux.subquery_clause:
+                            if 'FROM' in aux.subquery_clause or 'JOIN' in aux.subquery_clause:
+                                aux = aux.parent_query
+                                continue
+                            if aux.parent_query is not None:
+                                visible_tables = aux.parent_query.referenced_tables
+                            break
                     else:
                         visible_tables = next(from_scopes, [])
                 else:
@@ -526,6 +539,7 @@ class Select(SetOperation, TokenizedSQL):
                     search_path=self.search_path,
                     parent_query=self,
                     visible_parent_tables=visible_tables,
+                    subquery_clause=clause
                 )
                 self._subqueries.append((subquery, clause, depth))
     

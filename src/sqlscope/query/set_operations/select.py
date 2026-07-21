@@ -510,7 +510,7 @@ class Select(SetOperation, TokenizedSQL):
         '''
         if self._subqueries is None:
             self._subqueries = []
-            subquery_sqls = [item for item in extractors.extract_subqueries_tokens(self.sql) if item[2] == 1]
+            subquery_sqls = extractors.extract_subqueries_tokens(self.sql)
             from_scopes = iter(self._get_from_scope_prefixes())
 
             for subquery_sql, clause, depth in subquery_sqls:

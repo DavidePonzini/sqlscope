@@ -5,6 +5,7 @@ from abc import ABC
 from copy import deepcopy
 import sqlglot
 from sqlglot import exp
+from ...dialects import Dialect
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -13,8 +14,21 @@ if TYPE_CHECKING:
 
 class BinarySetOperation(SetOperation, ABC):
     '''Represents a binary set operation (e.g., UNION, INTERSECT, EXCEPT).'''
-    def __init__(self, sql: str, left: SetOperation, right: SetOperation, distinct: bool = True, trailing_sql: str | None = None):
-        super().__init__(sql)
+    def __init__(
+            self,
+            sql: str,
+            left: SetOperation,
+            right: SetOperation,
+            distinct: bool = True,
+            dialect: Dialect | None = None,
+            *,
+            trailing_sql: str | None = None,
+        ):
+        super().__init__(
+            sql=sql,
+            dialect=dialect
+        )
+        
         self.left = left
         self.right = right
         self.distinct = distinct
@@ -53,7 +67,7 @@ class BinarySetOperation(SetOperation, ABC):
         if self._trailing_ast is None:
             # Parse trailing SQL with a fake SELECT to get valid AST
             fake_sql = f'SELECT 1 {self.trailing_sql}'
-            parsed = sqlglot.parse_one(fake_sql)
+            parsed = sqlglot.parse_one(fake_sql, dialect=self.left.dialect.get_sqlglot_dialect() if self.left.dialect else None)
             self._trailing_ast = parsed
         return self._trailing_ast
 
@@ -132,8 +146,24 @@ class BinarySetOperation(SetOperation, ABC):
 
 class Union(BinarySetOperation):
     '''Represents a SQL UNION operation.'''
-    def __init__(self, sql: str, left: SetOperation, right: SetOperation, distinct: bool = True, trailing_sql: str | None = None):
-        super().__init__(sql, left, right, distinct=distinct, trailing_sql=trailing_sql)
+    def __init__(
+            self,
+            sql: str,
+            left: SetOperation,
+            right: SetOperation,
+            distinct: bool = True,
+            dialect: Dialect | None = None,
+            *,
+            trailing_sql: str | None = None,
+        ):
+        super().__init__(
+            sql=sql,
+            left=left,
+            right=right,
+            distinct=distinct,
+            dialect=dialect,
+            trailing_sql=trailing_sql,
+        )
 
     @property
     def output(self) -> Table:
@@ -150,13 +180,41 @@ class Union(BinarySetOperation):
 
 class Intersect(BinarySetOperation):
     '''Represents a SQL INTERSECT operation.'''
-    def __init__(self, sql: str, left: SetOperation, right: SetOperation, distinct: bool = True, trailing_sql: str | None = None):
-        super().__init__(sql, left, right, distinct=distinct, trailing_sql=trailing_sql)
-
+    def __init__(
+            self,
+            sql: str,
+            left: SetOperation,
+            right: SetOperation,
+            distinct: bool = True,
+            dialect: Dialect | None = None,
+            *,
+            trailing_sql: str | None = None,
+        ):
+        super().__init__(
+            sql=sql,
+            left=left,
+            right=right,
+            distinct=distinct,
+            dialect=dialect,
+            trailing_sql=trailing_sql,
+        )
 class Except(BinarySetOperation):
     '''Represents a SQL EXCEPT operation.'''
-    def __init__(self, sql: str, left: SetOperation, right: SetOperation, distinct: bool = True, trailing_sql: str | None = None):
-        super().__init__(sql, left, right, distinct=distinct, trailing_sql=trailing_sql)
-
-    
-
+    def __init__(
+            self,
+            sql: str,
+            left: SetOperation,
+            right: SetOperation,
+            distinct: bool = True,
+            dialect: Dialect | None = None,
+            *,
+            trailing_sql: str | None = None,
+        ):
+        super().__init__(
+            sql=sql,
+            left=left,
+            right=right,
+            distinct=distinct,
+            dialect=dialect,
+            trailing_sql=trailing_sql,
+        )

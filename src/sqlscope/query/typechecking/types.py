@@ -14,7 +14,7 @@ class ResultType:
 
     @property
     def data_type_str(self) -> str:
-        return self.data_type.value.lower()
+        return str(self.data_type.value).lower()
 
 @dataclass
 class AtomicType(ResultType):

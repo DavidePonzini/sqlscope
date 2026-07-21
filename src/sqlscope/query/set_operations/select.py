@@ -4,6 +4,7 @@ from ..tokenized_sql import TokenizedSQL
 from ..typechecking import get_type, rewrite_expression
 from ... import util
 from ...catalog import Catalog, Table, ConstraintColumn, Constraint, ConstraintType
+from ...dialects import Dialect
 
 import sqlglot
 import sqlglot.errors
@@ -21,6 +22,7 @@ class Select(SetOperation, TokenizedSQL):
                  *,
                  catalog: Catalog = Catalog(),
                  search_path: str = 'public',
+                 dialect: Dialect | None = None,
                  parent_query: 'Select | None' = None,
                  subquery_clause: str | None = None,
                  visible_parent_tables: list[Table] | None = None,
@@ -36,7 +38,7 @@ class Select(SetOperation, TokenizedSQL):
             parent (TokenizedSQL | None): The parent TokenizedSQL object if this is a subquery.
         '''
 
-        SetOperation.__init__(self, query, parent_query=parent_query)
+        SetOperation.__init__(self, query, parent_query=parent_query, dialect=dialect)
         TokenizedSQL.__init__(self, query)
 
         self.catalog = catalog
@@ -56,7 +58,7 @@ class Select(SetOperation, TokenizedSQL):
         self._output: Table | None = None       # fully computed output table with constraints
 
         try:
-            self.ast = sqlglot.parse_one(self.sql)
+            self.ast = sqlglot.parse_one(self.sql, dialect=self.dialect.get_sqlglot_dialect() if self.dialect else None)
         except sqlglot.errors.ParseError:
             self.ast = None  # Empty expression on parse error
 

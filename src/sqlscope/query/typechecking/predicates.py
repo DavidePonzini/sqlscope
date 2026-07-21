@@ -4,11 +4,12 @@ from sqlglot import exp
 from .types import ResultType, AtomicType
 from sqlglot.expressions import DataType
 from .util import is_string, to_number, to_date, error_message
+from ...dialects import Dialect
 
 @get_type.register
-def _(expression: exp.Like, catalog: Catalog, search_path: str) -> ResultType:
-    left_type = get_type(expression.this, catalog, search_path)
-    right_type = get_type(expression.expression, catalog, search_path)
+def _(expression: exp.Like, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
+    left_type = get_type(expression.this, catalog, search_path, dialect)
+    right_type = get_type(expression.expression, catalog, search_path, dialect)
 
     old_messages = left_type.messages + right_type.messages
     
@@ -22,9 +23,9 @@ def _(expression: exp.Like, catalog: Catalog, search_path: str) -> ResultType:
     return AtomicType(data_type=expression.type.this, nullable=False, constant=True, messages=old_messages)
 
 @get_type.register
-def _(expression: exp.Is, catalog: Catalog, search_path: str) -> ResultType:  
-    left_type = get_type(expression.this, catalog, search_path)
-    right_type = get_type(expression.expression, catalog, search_path)
+def _(expression: exp.Is, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:  
+    left_type = get_type(expression.this, catalog, search_path, dialect)
+    right_type = get_type(expression.expression, catalog, search_path, dialect)
 
     old_messages = left_type.messages + right_type.messages
 
@@ -41,10 +42,10 @@ def _(expression: exp.Is, catalog: Catalog, search_path: str) -> ResultType:
     return AtomicType(data_type=expression.type.this, nullable=False, constant=True, messages=old_messages)
 
 @get_type.register
-def _(expression: exp.Between, catalog: Catalog, search_path: str) -> ResultType:
-    target_type = get_type(expression.this, catalog, search_path)
-    low_type = get_type(expression.args.get("low"), catalog, search_path)
-    high_type = get_type(expression.args.get("high"), catalog, search_path)
+def _(expression: exp.Between, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
+    target_type = get_type(expression.this, catalog, search_path, dialect)
+    low_type = get_type(expression.args.get("low"), catalog, search_path, dialect)
+    high_type = get_type(expression.args.get("high"), catalog, search_path, dialect)
 
     old_messages = target_type.messages + low_type.messages + high_type.messages
 
@@ -69,8 +70,8 @@ def _(expression: exp.Between, catalog: Catalog, search_path: str) -> ResultType
 
 
 @get_type.register
-def _(expression: exp.In, catalog: Catalog, search_path: str) -> ResultType:
-    target_type = get_type(expression.this, catalog, search_path)
+def _(expression: exp.In, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
+    target_type = get_type(expression.this, catalog, search_path, dialect)
 
     old_messages = target_type.messages
 
@@ -79,14 +80,14 @@ def _(expression: exp.In, catalog: Catalog, search_path: str) -> ResultType:
 
     # Case IN (<list>)
     for item in expression.expressions:
-        item_type = get_type(item, catalog, search_path)
+        item_type = get_type(item, catalog, search_path, dialect)
         old_messages.extend(item_type.messages)
         if target_type != item_type:
             old_messages.append(error_message(expression, item_type, target_type))
 
     # Case IN (subquery)
     if expression.args.get("query"):
-        subquery_type = get_type(expression.args.get("query"), catalog, search_path)
+        subquery_type = get_type(expression.args.get("query"), catalog, search_path, dialect)
         old_messages.extend(subquery_type.messages)
         if target_type != subquery_type:
             old_messages.append(error_message(expression, subquery_type, target_type))
@@ -96,9 +97,9 @@ def _(expression: exp.In, catalog: Catalog, search_path: str) -> ResultType:
 
 # AND, OR
 @get_type.register
-def _(expression: exp.Connector, catalog: Catalog, search_path: str) -> ResultType:
-    left_type = get_type(expression.this, catalog, search_path)
-    right_type = get_type(expression.expression, catalog, search_path)
+def _(expression: exp.Connector, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
+    left_type = get_type(expression.this, catalog, search_path, dialect)
+    right_type = get_type(expression.expression, catalog, search_path, dialect)
 
     old_messages = left_type.messages + right_type.messages
 
@@ -113,11 +114,11 @@ def _(expression: exp.Connector, catalog: Catalog, search_path: str) -> ResultTy
 
 # ANY, ALL
 @get_type.register
-def _(expression: exp.SubqueryPredicate, catalog: Catalog, search_path: str) -> ResultType:
-    return get_type(expression.this, catalog, search_path)
+def _(expression: exp.SubqueryPredicate, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
+    return get_type(expression.this, catalog, search_path, dialect)
 
 # EXISTS
 @get_type.register
-def _(expression: exp.Exists, catalog: Catalog, search_path: str) -> ResultType:
-    old_messages = get_type(expression.this, catalog, search_path).messages
+def _(expression: exp.Exists, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
+    old_messages = get_type(expression.this, catalog, search_path, dialect).messages
     return AtomicType(data_type=DataType.Type.BOOLEAN, nullable=False, constant=True, messages=old_messages)

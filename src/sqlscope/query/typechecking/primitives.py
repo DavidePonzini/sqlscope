@@ -5,26 +5,27 @@ from .types import ResultType, AtomicType, TupleType
 from sqlglot.expressions import DataType
 from .util import is_number, is_date, to_number, to_date, error_message
 from ...util.ast.column import get_real_name, get_schema
+from ...dialects import Dialect
 
 @get_type.register
-def _(expression: exp.Literal, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.Literal, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
     return AtomicType(data_type=expression.type.this, nullable=False, constant=True, value=expression.this)
 
 @get_type.register
-def _(expression: exp.Boolean, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.Boolean, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
     return AtomicType(data_type=expression.type.this, nullable=False, constant=True)
 
 @get_type.register
-def _(expression: exp.Null, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.Null, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
     return AtomicType(data_type=DataType.Type.NULL, constant=True)
 
 @get_type.register
-def _(expression: exp.Tuple, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.Tuple, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
 
     old_messages = []
     types = []
     for item in expression.expressions:
-        item_type = get_type(item, catalog, search_path)
+        item_type = get_type(item, catalog, search_path, dialect)
         if item_type.messages:
             old_messages.extend(item_type.messages)
         types.append(item_type)
@@ -35,9 +36,9 @@ def _(expression: exp.Tuple, catalog: Catalog, search_path: str) -> ResultType:
     return TupleType(types=types, messages=old_messages, nullable=any(t.nullable for t in types), constant=all(t.constant for t in types))
 
 @get_type.register
-def _(expression: exp.Cast, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.Cast, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
 
-    original_type = get_type(expression.this, catalog, search_path)
+    original_type = get_type(expression.this, catalog, search_path, dialect)
 
     new_type = expression.type.this
     
@@ -61,15 +62,15 @@ def _(expression: exp.Cast, catalog: Catalog, search_path: str) -> ResultType:
     return AtomicType(data_type=new_type, nullable=original_type.nullable, constant=original_type.constant, messages=old_messages, value=original_type.value)
 
 @get_type.register
-def _(expression: exp.CurrentDate, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.CurrentDate, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
     return AtomicType(data_type=expression.type.this, nullable=False, constant=True)
 
 @get_type.register
-def _(expression: exp.CurrentTimestamp, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.CurrentTimestamp, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
     return AtomicType(data_type=expression.type.this, nullable=False, constant=True)
 
 @get_type.register
-def _(expression: exp.Column, catalog: Catalog, search_path: str) -> ResultType:
+def _(expression: exp.Column, catalog: Catalog, search_path: str, dialect: Dialect | None = None) -> ResultType:
     if expression.type.this in (DataType.Type.UNKNOWN, DataType.Type.USERDEFINED):
         return AtomicType() # unknown column
     else:

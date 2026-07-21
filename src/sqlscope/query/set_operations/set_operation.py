@@ -8,18 +8,23 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .select import Select
 
+from ...dialects import Dialect
+
 
 class SetOperation(ABC):
     '''
     Abstract base class for SQL set operations (i.e., SELECT, UNION, INTERSECT, EXCEPT).
     '''
 
-    def __init__(self, sql: str, parent_query: 'Select | None' = None) -> None:
+    def __init__(self, sql: str, parent_query: 'Select | None' = None, dialect: Dialect | None = None) -> None:
         self.sql = sql
         '''The SQL string representing the operation.'''
         
         self.parent_query = parent_query
         '''The parent Select if this is a subquery.'''
+
+        self.dialect = dialect
+        '''The dialect for the SQL query.'''
 
     @property
     @abstractmethod

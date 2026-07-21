@@ -2,6 +2,7 @@ import pytest
 from sqlscope import load_catalog
 from sqlscope.query import Query
 from sqlscope.query.typechecking import collect_errors, get_type
+from sqlscope.dialects import Dialect
 
 @pytest.fixture
 def make_query():
@@ -54,6 +55,18 @@ def test_function_types(make_query):
     result = [col.column_type for col in query.main_query.output.columns]
 
     assert result == ['bigint', 'double', 'decimal', 'varchar', 'decimal', 'varchar', 'null']
+
+
+@pytest.mark.parametrize('sql, dialect, expected_errors', [
+    ("SELECT 'a' || 'b' AS concat_col;", Dialect.POSTGRES, []),
+    ("SELECT 'a' || 1 AS concat_col;", Dialect.POSTGRES, [("varchar || int", "string")]),
+    ("SELECT 'a' || 'b' AS concat_col;", Dialect.MYSQL, [])
+])
+def test_string_concatenation(sql, dialect, expected_errors, make_query):
+    query = make_query(sql, 'miedema')
+    messages = [(found, expected) for _, found, expected in collect_errors(query.main_query.typed_ast, query.catalog, query.search_path, dialect)]
+
+    assert messages == expected_errors
 
 # logical operators
 @pytest.mark.parametrize('sql, expected_types', [

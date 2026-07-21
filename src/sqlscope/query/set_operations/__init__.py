@@ -1,16 +1,25 @@
 '''Query representation as set operation trees.'''
 
+
 from .set_operation import SetOperation
 from .binary_set_operation import BinarySetOperation, Union, Intersect, Except
 from .select import Select
 from ...catalog import Catalog
+from ...dialects import Dialect
 from ... import util
 
 import sqlparse
 from sqlparse.sql import Parenthesis
 from sqlparse.tokens import Keyword
 
-def create_set_operation_tree(sql: str, catalog: Catalog = Catalog(), search_path: str = 'public', is_top_level: bool = True) -> SetOperation:
+def create_set_operation_tree(
+        sql: str,
+        catalog: Catalog = Catalog(),
+        search_path: str = 'public',
+        dialect: Dialect | None = None,
+        *,
+        is_top_level: bool = True,
+    ) -> SetOperation:
     '''
     Parses a SQL string and constructs a tree of SetOperation objects representing the query structure using sqlparse.
 
@@ -31,12 +40,12 @@ def create_set_operation_tree(sql: str, catalog: Catalog = Catalog(), search_pat
     stripped_sql = util.sql.remove_parentheses(sql)
     if stripped_sql != sql:
         # if outer parentheses were removed, we are again at top level
-        return create_set_operation_tree(stripped_sql, catalog, search_path, True)
+        return create_set_operation_tree(stripped_sql, catalog, search_path, dialect, is_top_level=True)
     sql = stripped_sql
 
     parsed = sqlparse.parse(sql)
     if not parsed:
-        return Select(sql, catalog=catalog, search_path=search_path)
+        return Select(sql, catalog=catalog, search_path=search_path, dialect=dialect)
 
     statement = parsed[0]
     all_tokens = statement.tokens
@@ -49,7 +58,7 @@ def create_set_operation_tree(sql: str, catalog: Catalog = Catalog(), search_pat
 
     top_ops = find_top_level_ops(main_tokens)
     if not top_ops:
-        return Select(sql, catalog=catalog, search_path=search_path)
+        return Select(sql, catalog=catalog, search_path=search_path, dialect=dialect)
 
     # Precedence: split lowest-precedence first (UNION/EXCEPT) so INTERSECT stays grouped
     # start from the last occurrence to get left-associative grouping
@@ -62,17 +71,17 @@ def create_set_operation_tree(sql: str, catalog: Catalog = Catalog(), search_pat
 
     left_tokens, right_tokens, all_kw = split_on(main_tokens, split_idx, all_in_token)
 
-    left_node  = create_set_operation_tree(util.tokens.tokens_to_sql(left_tokens),  catalog, search_path, False)
-    right_node = create_set_operation_tree(util.tokens.tokens_to_sql(right_tokens), catalog, search_path, False)
+    left_node  = create_set_operation_tree(util.tokens.tokens_to_sql(left_tokens),  catalog, search_path, dialect, is_top_level=False)
+    right_node = create_set_operation_tree(util.tokens.tokens_to_sql(right_tokens), catalog, search_path, dialect, is_top_level=False)
 
     trailing_sql = util.tokens.tokens_to_sql(trailing_tokens) if trailing_tokens else None
 
     if op == 'UNION':
-        node = Union(sql, left_node, right_node, distinct=not all_kw, trailing_sql=trailing_sql)
+        node = Union(sql, left_node, right_node, distinct=not all_kw, trailing_sql=trailing_sql, dialect=dialect)
     elif op == 'EXCEPT':
-        node = Except(sql, left_node, right_node, distinct=not all_kw, trailing_sql=trailing_sql)
+        node = Except(sql, left_node, right_node, distinct=not all_kw, trailing_sql=trailing_sql, dialect=dialect)
     else:  # INTERSECT
-        node = Intersect(sql, left_node, right_node, distinct=not all_kw, trailing_sql=trailing_sql)
+        node = Intersect(sql, left_node, right_node, distinct=not all_kw, trailing_sql=trailing_sql, dialect=dialect)
     return node
 
 def parse_op_token(tok: sqlparse.sql.Token) -> tuple[str, bool | None] | None:

@@ -6,19 +6,24 @@ from .set_operations import SetOperation, BinarySetOperation, Select, create_set
 from .tokenized_sql import TokenizedSQL
 from ..catalog import Catalog
 from .. import util
+from ..dialects import Dialect
 
 class Query(TokenizedSQL):
     def __init__(self,
                 sql: str,
                 *,
                 catalog: Catalog = Catalog(),
-                search_path: str = 'public'
+                search_path: str = 'public',
+                dialect: Dialect | None = None
         ) -> None:
         '''
         Represents a full SQL query, potentially with multiple statements (i.e., CTEs and set operations).
         '''
 
         super().__init__(sql)
+
+        self.dialect = dialect
+        '''The SQL dialect to use for parsing and typechecking.'''
 
         self.catalog = catalog.copy()
         '''Catalog representing tables that can be referenced in this query.'''
@@ -96,7 +101,12 @@ class Query(TokenizedSQL):
                     continue
 
             cte_parenthesis_str = str(cte_parenthesis)[1:-1]  # Remove surrounding parentheses
-            cte = create_set_operation_tree(cte_parenthesis_str, search_path=self.search_path, catalog=self.catalog)
+            cte = create_set_operation_tree(
+                sql=cte_parenthesis_str,
+                search_path=self.search_path,
+                catalog=self.catalog,
+                dialect=self.dialect,
+            )
 
             self.ctes.append(cte)
 
@@ -109,7 +119,12 @@ class Query(TokenizedSQL):
             self.catalog.get_schema(output.schema_name)[cte_name] = output
 
         main_query_sql = ''.join(str(token) for token in main_query_tokens).strip()
-        self.main_query = create_set_operation_tree(main_query_sql, catalog=self.catalog, search_path=self.search_path)
+        self.main_query = create_set_operation_tree(
+            main_query_sql,
+            catalog=self.catalog,
+            search_path=self.search_path,
+            dialect=self.dialect,
+        )
 
     # region Properties
     @property

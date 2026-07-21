@@ -1,8 +1,8 @@
-from enum import Enum
+from enum import StrEnum
 from sqlglot.dialects import postgres, mysql
 from sqlglot.dialects.dialect import Dialect as sqlglot_Dialect
 
-class Dialect(Enum):
+class Dialect(StrEnum):
     POSTGRES = 'postgres'
     MYSQL = 'mysql'
 

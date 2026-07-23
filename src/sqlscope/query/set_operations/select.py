@@ -804,8 +804,9 @@ class Select(SetOperation, TokenizedSQL):
     @property
     def selects(self) -> list['Select']:
         result: list['Select'] = [self]
-        for subquery, _, _ in self.subqueries:
-            result.extend(subquery.selects)
+        for subquery, _, depth in self.subqueries:
+            if depth == 1:
+                result.extend(subquery.selects)
         return result
 
     # endregion
@@ -816,5 +817,12 @@ class Select(SetOperation, TokenizedSQL):
             self.parsed._pprint_tree(_pre=pre)
 
     def __repr__(self, pre: str = '') -> str:
-        return f'{pre}{self.__class__.__name__}(SQL="{self.sql.splitlines()[0]}{"..." if len(self.sql.splitlines()) > 1 else ""}")'
+        stripped_sql = ' '.join(self.sql.split())
+        if len(stripped_sql) > 80:
+            stripped_sql = stripped_sql[:77] + '...'
+
+        ast_status = '' if self.ast else ' [AST not parsed]'
+        output_columns = f'Output columns: {len(self.output.columns)}'
+
+        return f'{pre}{self.__class__.__name__}("{stripped_sql}" | {output_columns}{ast_status})'
     # endregion

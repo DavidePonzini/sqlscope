@@ -87,6 +87,19 @@ class Catalog:
 
         return self.lookup_table(search_path, table_name) is not None
 
+    def has_function(self, search_path: str, name: str, arguments: list[str] | None = None) -> bool:
+        '''
+            Checks if a function exists in any schema from the specified search path.
+
+            Returns False if none of the schemas contain the function.
+        '''
+
+        for schema_name in split_search_path(search_path):
+            schema = self._schemas.get(schema_name)
+            if schema and schema.has_function(name, arguments):
+                return True
+        return False
+
     def add_column(self, search_path: str, table_name: str, column_name: str,
                    column_type: str, numeric_precision: int | None = None, numeric_scale: int | None = None,
                    is_nullable: bool = True,

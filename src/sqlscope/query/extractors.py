@@ -223,7 +223,7 @@ def sanitize_query_str(sql: str) -> str:
         parsed = sqlparse.parse(sql)
         for stmt in parsed:
             for token in stmt.flatten():
-                if token.ttype is sqlparse.tokens.Name and token.value.upper() in ('EXISTS', 'ANY', 'ALL', 'SELECT'):
+                if token.ttype is sqlparse.tokens.Name and token.value.upper() in ('EXISTS', 'ANY', 'ALL', 'SELECT', 'AND', 'OR', 'NOT'):
                     result += token.value + ' '
                 else:
                     result += token.value

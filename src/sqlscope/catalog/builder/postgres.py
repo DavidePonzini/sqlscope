@@ -49,10 +49,32 @@ class CatalogUniqueConstraintInfo:
             'constraint_type': self.constraint_type,
             'columns': self.columns,
         }
+
+@dataclass(frozen=True)
+class CatalogFunctionInfo:
+    '''Holds information about a database function.'''
+    schema_name: str
+    function_name: str
+    arguments: list[str]
+    return_type: str
+    kind: str  # FUNCTION, PROCEDURE, AGGREGATE, WINDOW
+
+    def to_dict(self) -> dict:
+        return {
+            'schema_name': self.schema_name,
+            'function_name': self.function_name,
+            'arguments': self.arguments,
+            'return_type': self.return_type,
+            'kind': self.kind,
+        }
 # endregion
     
 # region Catalog Builder
-def build_catalog(columns_info: list[CatalogColumnInfo], unique_constraints_info: list[CatalogUniqueConstraintInfo]) -> Catalog:
+def build_catalog(
+        columns_info: list[CatalogColumnInfo],
+        unique_constraints_info: list[CatalogUniqueConstraintInfo],
+        functions_info: list[CatalogFunctionInfo]
+    ) -> Catalog:
     '''Builds a catalog from the provided column and unique constraint information.'''
     result = Catalog()
     
@@ -75,6 +97,14 @@ def build_catalog(columns_info: list[CatalogColumnInfo], unique_constraints_info
         constraint_type = ConstraintType.PRIMARY_KEY if constraint.constraint_type == 'PRIMARY KEY' else ConstraintType.UNIQUE
 
         result.get_table(constraint.schema_name, constraint.table_name).add_unique_constraint(columns, constraint_type=constraint_type)
+
+    for function in functions_info:
+        result.get_schema(function.schema_name).add_function(
+            name=function.function_name,
+            arguments=function.arguments,
+            return_type=function.return_type,
+            kind=function.kind
+        )
 
     return result
 
@@ -125,7 +155,22 @@ def build_catalog_from_postgres_schema(
         for row in unique_constraints_info
     ]
 
-    return build_catalog(columns_data, unique_constraints_data)
+    # Fetch functions
+    cur.execute(FUNCTIONS(schema))
+    functions_info = cur.fetchall()
+
+    functions_data = [
+        CatalogFunctionInfo(
+            schema_name=row[0],
+            function_name=row[1],
+            arguments=row[2].split(',') if row[2] else [],
+            return_type=row[3],
+            kind=row[4],
+        )
+        for row in functions_info
+    ]
+
+    return build_catalog(columns_data, unique_constraints_data, functions_data)
 
 def build_catalog_from_postgres(
         sql_string: str | None,
@@ -228,5 +273,24 @@ def COLUMNS(schema_name: str = '%') -> str:
         AND fk.column_name = cols.column_name
 
     WHERE cols.table_schema LIKE '{schema_name}'
+'''
+
+def FUNCTIONS(schema_name: str = '%') -> str:
+    return f'''
+    SELECT
+        n.nspname AS schema_name,
+        p.proname AS name,
+        pg_get_function_identity_arguments(p.oid) AS arguments,
+        pg_get_function_result(p.oid) AS return_type,
+        CASE p.prokind
+            WHEN 'f' THEN 'FUNCTION'
+            WHEN 'p' THEN 'PROCEDURE'
+            WHEN 'a' THEN 'AGGREGATE'
+            WHEN 'w' THEN 'WINDOW'
+        END AS function_type
+    FROM pg_proc AS p
+    JOIN pg_namespace AS n
+        ON n.oid = p.pronamespace
+    WHERE n.nspname LIKE '{schema_name}'
 '''
 # endregion

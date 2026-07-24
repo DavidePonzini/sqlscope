@@ -116,7 +116,16 @@ class Catalog:
         for schema in self._schemas.values():
             result.update(schema.table_names)
         return result
-    
+
+    @property
+    def function_names(self) -> set[str]:
+        '''Returns all function names in the catalog, regardless of schema.'''
+
+        result = set()
+        for schema in self._schemas.values():
+            result.update(func.name for func in schema._functions)
+        return result
+
     def merge(self, other: 'Catalog') -> 'Catalog':
         '''Merges another catalog into this one, overwriting any existing schemas, tables, or columns with the same names.'''
 

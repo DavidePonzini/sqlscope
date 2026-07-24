@@ -1,4 +1,5 @@
 from .table import Table
+from .function import Function
 
 from dataclasses import dataclass, field
 import json
@@ -11,7 +12,7 @@ class Schema:
 
     name: str
     _tables: dict[str, Table] = field(default_factory=dict)
-    functions: set[str] = field(default_factory=set)
+    _functions: list[Function] = field(default_factory=list)
 
     def __getitem__(self, table_name: str) -> Table:
         '''Gets a table from the schema, creating it if it does not exist.'''
@@ -33,10 +34,39 @@ class Schema:
             return False
         return self.__getitem__(table_name).has_column(column_name)
 
+    def add_function(self, name: str, arguments: list[str], return_type: str, kind: str) -> Function:
+        '''Adds a function to the schema and returns it.'''
+        func = Function(name=name, arguments=arguments, return_type=return_type, kind=kind)
+        self._functions.append(func)
+        return func
+
+    def has_function(self, name: str, arguments: list[str] | None = None) -> bool:
+        '''Checks if a function exists in the schema.'''
+        if arguments is None:
+            return any(func.name == name for func in self._functions)
+
+        return any(func.name == name and func.arguments == arguments for func in self._functions)
+
+    def get_functions(self, name: str) -> list[Function]:
+        '''Gets all functions with the given name in the schema.'''
+        return [func for func in self._functions if func.name == name]
+
+    def get_function(self, name: str, arguments: list[str]) -> Function | None:
+        '''Gets a function with the given name and arguments in the schema.'''
+        for func in self._functions:
+            if func.name == name and func.arguments == arguments:
+                return func
+        return None
+
     @property
     def table_names(self) -> set[str]:
         '''Returns all table names in the schema.'''
         return set(self._tables.keys())
+
+    @property
+    def function_names(self) -> set[str]:
+        '''Returns all function names in the schema.'''
+        return set(func.name for func in self._functions)
 
     def merge(self, other: 'Schema') -> 'Schema':
         '''Merges another schema into this one, overwriting any existing tables with the same names.'''
@@ -54,7 +84,8 @@ class Schema:
     def __repr__(self, level: int = 0) -> str:
         indent = '  ' * level
         tables = '\n'.join([table.__repr__(level + 1) for table in self._tables.values()])
-        return f'{indent}Schema(name=\'{self.name}\', tables=[\n{tables}\n{indent}])'
+        functions = '\n'.join([func.__repr__(level + 1) for func in self._functions])
+        return f'{indent}Schema(name=\'{self.name}\', tables=[\n{tables}\n{indent}], functions=[\n{functions}\n{indent}])'
 
     # region Serialization
     def to_dict(self) -> dict:
@@ -62,6 +93,7 @@ class Schema:
         return {
             'name': self.name,
             'tables': {name: tbl.to_dict() for name, tbl in self._tables.items()},
+            'functions': [func.to_dict() for func in self._functions]
         }
 
     @classmethod
@@ -71,5 +103,8 @@ class Schema:
         for _, tbl_data in (data.get('tables') or {}).items():
             tbl = Table.from_dict(tbl_data, schema_name=schema.name)
             schema._tables[tbl.name] = tbl
+        for func_data in data.get('functions', []):
+            func = Function.from_dict(func_data)
+            schema._functions.append(func)
         return schema
     # endregion

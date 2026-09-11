@@ -81,6 +81,17 @@ def test_select_star():
 
     assert len(query.main_query.output.columns) == len(query.catalog.get_table(db, table).columns)
 
+@pytest.mark.parametrize(('sql', 'expected'), [
+    ('SELECT * FROM users', True),
+    ('SELECT id FROM users', False),
+    ('SELECT *, id FROM users', False),
+    ('SELECT * FROM', True),
+])
+def test_is_select_all(sql, expected):
+    select = Select(sql)
+
+    assert select.is_select_all is expected
+
 def test_select_multiple_stars():
     db = 'miedema'
     catalog_db = load_catalog("datasets/catalogs/miedema.json")

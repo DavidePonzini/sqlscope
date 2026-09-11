@@ -498,6 +498,12 @@ class Select(SetOperation, TokenizedSQL):
     # endregion
 
     # region Properties
+
+
+    @property
+    def is_select_all(self):
+        '''Returns True if the main query is a SELECT * query.'''
+        return util.tokens.is_select_all(self.tokens)
     
     # NOTE: should this return a SetOp? What if the subquery is a UNION?
     @property
